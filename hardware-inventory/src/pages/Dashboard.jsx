@@ -108,7 +108,7 @@ export default function Dashboard() {
             </div>
 
             {/* Stats row — visible based on role */}
-            {(role === 'admin' || role === 'warehouse_manager' || role === 'approval_manager') && (
+            {(role === 'admin' || role === 'inventory_manager' || role === 'procurement_manager' || role === 'approval_manager') && (
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 mb-6">
                     {role === 'admin' && (
                         <StatCard
@@ -135,7 +135,7 @@ export default function Dashboard() {
 
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                 {/* Low Stock Alerts */}
-                {(role !== 'cashier') && (
+                {(role !== 'sales_operator') && (
                     <div className="card">
                         <div className="flex items-center gap-2 mb-4">
                             <ExclamationTriangleIcon className="w-5 h-5 text-yellow-500" />
@@ -257,20 +257,20 @@ export default function Dashboard() {
                     </div>
                 )}
 
-                {/* Cashier: quick notes */}
-                {role === 'cashier' && (
+                {/* Sales operator: quick notes */}
+                {role === 'sales_operator' && (
                     <div className="card">
                         <h3 className="font-semibold text-gray-800 mb-2">Quick Tips</h3>
                         <ul className="text-sm text-gray-600 space-y-2 list-disc pl-4">
-                            <li>Use <strong>Stock Movements</strong> to record sales.</li>
-                            <li>Select the product, set type to <strong>Sale</strong>, enter quantity.</li>
+                            <li>Use <strong>POS</strong> to scan or search items.</li>
+                            <li>Build a cart, choose payment details, then complete the sale.</li>
                             <li>Check <strong>Purchase Orders</strong> to see restock status.</li>
                         </ul>
                     </div>
                 )}
 
-                {/* Worker widget */}
-                {role === 'worker' && (
+                {/* Staff widget */}
+                {role === 'staff' && (
                     <div className="card">
                         <h3 className="font-semibold text-gray-800 mb-3">Items to Restock</h3>
                         {lowStock.length === 0 ? (

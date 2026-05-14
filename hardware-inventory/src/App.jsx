@@ -7,12 +7,14 @@ import ProtectedRoute from './components/ProtectedRoute';
 
 import Login from './pages/Login';
 import Dashboard from './pages/Dashboard';
+import POS from './pages/POS';
 import Inventory from './pages/Inventory';
 import StockMovements from './pages/StockMovements';
 import PurchaseOrders from './pages/PurchaseOrders';
 import OrderApproval from './pages/OrderApproval';
 import Reports from './pages/Reports';
 import UserManagement from './pages/UserManagement';
+import { ROUTE_ROLES } from './lib/roles';
 
 // Simple 403 page
 function Unauthorized() {
@@ -52,49 +54,56 @@ export default function App() {
 
                     {/* All roles */}
                     <Route path="/dashboard" element={
-                        <ProtectedRoute allowedRoles={['admin', 'warehouse_manager', 'cashier', 'approval_manager', 'worker']}>
+                        <ProtectedRoute allowedRoles={ROUTE_ROLES.dashboard}>
                             <Dashboard />
+                        </ProtectedRoute>
+                    } />
+
+                    {/* Point of Sale */}
+                    <Route path="/pos" element={
+                        <ProtectedRoute allowedRoles={ROUTE_ROLES.pos}>
+                            <POS />
                         </ProtectedRoute>
                     } />
 
                     {/* Inventory */}
                     <Route path="/inventory" element={
-                        <ProtectedRoute allowedRoles={['admin', 'warehouse_manager', 'worker']}>
+                        <ProtectedRoute allowedRoles={ROUTE_ROLES.inventory}>
                             <Inventory />
                         </ProtectedRoute>
                     } />
 
                     {/* Stock Movements */}
                     <Route path="/stock-movements" element={
-                        <ProtectedRoute allowedRoles={['admin', 'warehouse_manager', 'cashier', 'worker']}>
+                        <ProtectedRoute allowedRoles={ROUTE_ROLES.stockMovements}>
                             <StockMovements />
                         </ProtectedRoute>
                     } />
 
                     {/* Purchase Orders — all roles can read */}
                     <Route path="/purchase-orders" element={
-                        <ProtectedRoute allowedRoles={['admin', 'warehouse_manager', 'cashier', 'approval_manager', 'worker']}>
+                        <ProtectedRoute allowedRoles={ROUTE_ROLES.purchaseOrders}>
                             <PurchaseOrders />
                         </ProtectedRoute>
                     } />
 
                     {/* Order Approval — managers only */}
                     <Route path="/order-approval" element={
-                        <ProtectedRoute allowedRoles={['admin', 'approval_manager']}>
+                        <ProtectedRoute allowedRoles={ROUTE_ROLES.orderApproval}>
                             <OrderApproval />
                         </ProtectedRoute>
                     } />
 
                     {/* Reports */}
                     <Route path="/reports" element={
-                        <ProtectedRoute allowedRoles={['admin', 'warehouse_manager', 'approval_manager']}>
+                        <ProtectedRoute allowedRoles={ROUTE_ROLES.reports}>
                             <Reports />
                         </ProtectedRoute>
                     } />
 
                     {/* User Management — admin only */}
                     <Route path="/users" element={
-                        <ProtectedRoute allowedRoles={['admin']}>
+                        <ProtectedRoute allowedRoles={ROUTE_ROLES.users}>
                             <UserManagement />
                         </ProtectedRoute>
                     } />

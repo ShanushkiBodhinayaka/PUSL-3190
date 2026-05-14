@@ -11,11 +11,12 @@
 -- ============================================================
 -- Replace these UUIDs with real ones from your Supabase Auth table
 -- INSERT INTO profiles (id, full_name, role) VALUES
---   ('REPLACE-WITH-ADMIN-UUID',    'John Admin',        'admin'),
---   ('REPLACE-WITH-MANAGER-UUID',  'Sarah Manager',     'warehouse_manager'),
---   ('REPLACE-WITH-CASHIER-UUID',  'Tom Cashier',       'cashier'),
---   ('REPLACE-WITH-APPROVER-UUID', 'Lisa Approver',     'approval_manager'),
---   ('REPLACE-WITH-WORKER-UUID',   'Mike Worker',       'worker');
+--   ('REPLACE-WITH-ADMIN-UUID',       'John Admin',        'admin'),
+--   ('REPLACE-WITH-INVENTORY-UUID',   'Sarah Inventory',   'inventory_manager'),
+--   ('REPLACE-WITH-SALES-UUID',       'Tom Sales',         'sales_operator'),
+--   ('REPLACE-WITH-PROCUREMENT-UUID', 'Priya Procurement', 'procurement_manager'),
+--   ('REPLACE-WITH-APPROVER-UUID',    'Lisa Approver',     'approval_manager'),
+--   ('REPLACE-WITH-STAFF-UUID',       'Mike Staff',        'staff');
 
 -- ============================================================
 -- PRODUCTS — 20 realistic hardware store items

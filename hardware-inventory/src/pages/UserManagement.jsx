@@ -4,30 +4,13 @@ import { supabase } from '../lib/supabase';
 import { format } from 'date-fns';
 import { UsersIcon, PaperAirplaneIcon } from '@heroicons/react/24/outline';
 import toast from 'react-hot-toast';
-
-const ROLES = ['admin', 'warehouse_manager', 'cashier', 'approval_manager', 'worker'];
-
-const ROLE_LABELS = {
-    admin: 'Admin',
-    warehouse_manager: 'Warehouse Manager',
-    cashier: 'Cashier',
-    approval_manager: 'Approval Manager',
-    worker: 'Worker',
-};
-
-const ROLE_COLORS = {
-    admin: 'bg-purple-100 text-purple-800',
-    warehouse_manager: 'bg-blue-100 text-blue-800',
-    cashier: 'bg-green-100 text-green-800',
-    approval_manager: 'bg-orange-100 text-orange-800',
-    worker: 'bg-gray-100 text-gray-800',
-};
+import { ROLES, ROLE_COLORS, ROLE_LABELS } from '../lib/roles';
 
 export default function UserManagement() {
     const [users, setUsers] = useState([]);
     const [loading, setLoading] = useState(true);
     const [inviteEmail, setInviteEmail] = useState('');
-    const [inviteRole, setInviteRole] = useState('worker');
+    const [inviteRole, setInviteRole] = useState('staff');
     const [inviting, setInviting] = useState(false);
 
     const load = useCallback(async () => {
@@ -164,7 +147,7 @@ export default function UserManagement() {
                                         <td className="table-cell">
                                             <select
                                                 className="input-field text-xs py-1 w-auto"
-                                                value={u.role || 'worker'}
+                                                value={u.role || 'staff'}
                                                 onChange={(e) => handleRoleChange(u.id, e.target.value)}
                                             >
                                                 {ROLES.map((r) => <option key={r} value={r}>{ROLE_LABELS[r]}</option>)}

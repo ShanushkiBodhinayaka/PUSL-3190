@@ -8,7 +8,7 @@ export default function Login() {
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
     const [loading, setLoading] = useState(false);
-    const { signIn, role } = useAuth();
+    const { signIn } = useAuth();
     const navigate = useNavigate();
 
     async function handleSubmit(e) {

@@ -4,22 +4,7 @@ import {
     ArrowRightOnRectangleIcon,
     BellIcon,
 } from '@heroicons/react/24/outline';
-
-const ROLE_LABELS = {
-    admin: 'Admin',
-    warehouse_manager: 'Warehouse Manager',
-    cashier: 'Cashier',
-    approval_manager: 'Approval Manager',
-    worker: 'Worker',
-};
-
-const ROLE_COLORS = {
-    admin: 'bg-purple-100 text-purple-800',
-    warehouse_manager: 'bg-blue-100 text-blue-800',
-    cashier: 'bg-green-100 text-green-800',
-    approval_manager: 'bg-orange-100 text-orange-800',
-    worker: 'bg-gray-100 text-gray-800',
-};
+import { ROLE_COLORS, ROLE_LABELS } from '../lib/roles';
 
 export default function Navbar({ title }) {
     const { profile, role, signOut } = useAuth();
@@ -44,7 +29,7 @@ export default function Navbar({ title }) {
                             {profile?.full_name || 'User'}
                         </p>
                         <span
-                            className={`text-xs px-2 py-0.5 rounded-full font-medium ${ROLE_COLORS[role] || ROLE_COLORS.worker
+                            className={`text-xs px-2 py-0.5 rounded-full font-medium ${ROLE_COLORS[role] || ROLE_COLORS.staff
                                 }`}
                         >
                             {ROLE_LABELS[role] || role}

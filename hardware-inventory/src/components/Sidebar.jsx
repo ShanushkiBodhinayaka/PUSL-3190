@@ -1,8 +1,9 @@
 import React from 'react';
-import { NavLink, useNavigate } from 'react-router-dom';
+import { NavLink } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import {
     HomeIcon,
+    CalculatorIcon,
     CubeIcon,
     ArrowsRightLeftIcon,
     ShoppingCartIcon,
@@ -11,15 +12,17 @@ import {
     UsersIcon,
     WrenchScrewdriverIcon,
 } from '@heroicons/react/24/outline';
+import { ROUTE_ROLES } from '../lib/roles';
 
 const NAV_ITEMS = [
-    { to: '/dashboard', label: 'Dashboard', icon: HomeIcon, roles: ['admin', 'warehouse_manager', 'cashier', 'approval_manager', 'worker'] },
-    { to: '/inventory', label: 'Inventory', icon: CubeIcon, roles: ['admin', 'warehouse_manager', 'worker'] },
-    { to: '/stock-movements', label: 'Stock Movements', icon: ArrowsRightLeftIcon, roles: ['admin', 'warehouse_manager', 'cashier', 'worker'] },
-    { to: '/purchase-orders', label: 'Purchase Orders', icon: ShoppingCartIcon, roles: ['admin', 'warehouse_manager', 'cashier', 'approval_manager', 'worker'] },
-    { to: '/order-approval', label: 'Order Approval', icon: CheckBadgeIcon, roles: ['admin', 'approval_manager'] },
-    { to: '/reports', label: 'Reports', icon: ChartBarIcon, roles: ['admin', 'warehouse_manager', 'approval_manager'] },
-    { to: '/users', label: 'User Management', icon: UsersIcon, roles: ['admin'] },
+    { to: '/dashboard', label: 'Dashboard', icon: HomeIcon, roles: ROUTE_ROLES.dashboard },
+    { to: '/pos', label: 'POS', icon: CalculatorIcon, roles: ROUTE_ROLES.pos },
+    { to: '/inventory', label: 'Inventory', icon: CubeIcon, roles: ROUTE_ROLES.inventory },
+    { to: '/stock-movements', label: 'Stock Movements', icon: ArrowsRightLeftIcon, roles: ROUTE_ROLES.stockMovements },
+    { to: '/purchase-orders', label: 'Purchase Orders', icon: ShoppingCartIcon, roles: ROUTE_ROLES.purchaseOrders },
+    { to: '/order-approval', label: 'Order Approval', icon: CheckBadgeIcon, roles: ROUTE_ROLES.orderApproval },
+    { to: '/reports', label: 'Reports', icon: ChartBarIcon, roles: ROUTE_ROLES.reports },
+    { to: '/users', label: 'User Management', icon: UsersIcon, roles: ROUTE_ROLES.users },
 ];
 
 export default function Sidebar() {

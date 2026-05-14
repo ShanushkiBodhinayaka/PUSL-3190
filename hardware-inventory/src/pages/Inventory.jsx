@@ -3,6 +3,7 @@ import Layout from '../components/Layout';
 import { useAuth } from '../contexts/AuthContext';
 import { supabase } from '../lib/supabase';
 import { getStockStatus, runPredictionsForAllProducts } from '../lib/predictions';
+import { canManageInventory } from '../lib/roles';
 import { MagnifyingGlassIcon, PlusIcon, CpuChipIcon } from '@heroicons/react/24/outline';
 import toast from 'react-hot-toast';
 import { Dialog } from '@headlessui/react';
@@ -18,7 +19,7 @@ const STATUS_BADGE = {
 
 export default function Inventory() {
     const { role } = useAuth();
-    const canEdit = ['admin', 'warehouse_manager'].includes(role);
+    const canEdit = canManageInventory(role);
 
     const [products, setProducts] = useState([]);
     const [search, setSearch] = useState('');

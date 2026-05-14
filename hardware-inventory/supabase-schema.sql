@@ -12,16 +12,32 @@ create extension if not exists "pgcrypto";
 create table if not exists profiles (
   id uuid references auth.users on delete cascade primary key,
   full_name text,
-  role text check (role in ('admin', 'warehouse_manager', 'cashier', 'approval_manager', 'worker')),
+  role text check (role in ('admin', 'inventory_manager', 'sales_operator', 'procurement_manager', 'approval_manager', 'staff')),
   created_at timestamp with time zone default now()
 );
+
+-- Normalize older role names if this schema is applied to an existing project.
+alter table profiles drop constraint if exists profiles_role_check;
+
+update profiles
+set role = case role
+  when 'warehouse_manager' then 'inventory_manager'
+  when 'cashier' then 'sales_operator'
+  when 'worker' then 'staff'
+  else role
+end
+where role in ('warehouse_manager', 'cashier', 'worker');
+
+alter table profiles
+  add constraint profiles_role_check
+  check (role in ('admin', 'inventory_manager', 'sales_operator', 'procurement_manager', 'approval_manager', 'staff'));
 
 -- Auto-create a profile row when a new auth user signs up
 create or replace function public.handle_new_user()
 returns trigger as $$
 begin
   insert into public.profiles (id, full_name, role)
-  values (new.id, new.raw_user_meta_data->>'full_name', coalesce(new.raw_user_meta_data->>'role', 'worker'));
+  values (new.id, new.raw_user_meta_data->>'full_name', coalesce(new.raw_user_meta_data->>'role', 'staff'));
   return new;
 end;
 $$ language plpgsql security definer;
@@ -61,7 +77,35 @@ create table if not exists stock_movements (
 );
 
 -- ============================================================
--- 4. PURCHASE ORDERS TABLE
+-- 4. SALES TABLE
+-- ============================================================
+create table if not exists sales (
+  id uuid default gen_random_uuid() primary key,
+  receipt_number text unique not null,
+  customer_name text,
+  subtotal decimal(10,2) not null default 0,
+  discount_amount decimal(10,2) not null default 0,
+  total_amount decimal(10,2) not null default 0,
+  payment_method text check (payment_method in ('cash', 'card', 'bank_transfer', 'mobile_payment', 'other')) not null default 'cash',
+  payment_status text check (payment_status in ('paid', 'pending')) not null default 'paid',
+  created_by uuid references profiles(id),
+  created_at timestamp with time zone default now()
+);
+
+-- ============================================================
+-- 5. SALE ITEMS TABLE
+-- ============================================================
+create table if not exists sale_items (
+  id uuid default gen_random_uuid() primary key,
+  sale_id uuid references sales(id) on delete cascade,
+  product_id uuid references products(id) on delete restrict,
+  quantity integer not null check (quantity > 0),
+  unit_price decimal(10,2) not null default 0,
+  line_total decimal(10,2) not null default 0
+);
+
+-- ============================================================
+-- 6. PURCHASE ORDERS TABLE
 -- ============================================================
 create table if not exists purchase_orders (
   id uuid default gen_random_uuid() primary key,
@@ -78,11 +122,13 @@ create table if not exists purchase_orders (
 );
 
 -- ============================================================
--- 5. ROW LEVEL SECURITY (RLS)
+-- 7. ROW LEVEL SECURITY (RLS)
 -- ============================================================
 alter table profiles enable row level security;
 alter table products enable row level security;
 alter table stock_movements enable row level security;
+alter table sales enable row level security;
+alter table sale_items enable row level security;
 alter table purchase_orders enable row level security;
 
 -- Profiles: users can read all profiles, update own
@@ -112,6 +158,20 @@ create policy "Stock movements viewable by all" on stock_movements
 create policy "Authenticated users can insert stock movements" on stock_movements
   for insert with check (auth.role() = 'authenticated');
 
+-- Sales: authenticated users can read/insert POS sales
+create policy "Sales viewable by all" on sales
+  for select using (auth.role() = 'authenticated');
+
+create policy "Authenticated users can insert sales" on sales
+  for insert with check (auth.role() = 'authenticated');
+
+-- Sale items: authenticated users can read/insert POS sale lines
+create policy "Sale items viewable by all" on sale_items
+  for select using (auth.role() = 'authenticated');
+
+create policy "Authenticated users can insert sale items" on sale_items
+  for insert with check (auth.role() = 'authenticated');
+
 -- Purchase orders: all authenticated users can read
 create policy "Purchase orders viewable by all" on purchase_orders
   for select using (auth.role() = 'authenticated');
@@ -123,6 +183,6 @@ create policy "Authenticated users can update purchase orders" on purchase_order
   for update using (auth.role() = 'authenticated');
 
 -- ============================================================
--- 6. ENABLE REALTIME on purchase_orders
+-- 8. ENABLE REALTIME on purchase_orders
 -- ============================================================
 alter publication supabase_realtime add table purchase_orders;

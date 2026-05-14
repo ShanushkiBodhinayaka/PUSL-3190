@@ -2,6 +2,7 @@ import React, { useEffect, useState, useCallback } from 'react';
 import Layout from '../components/Layout';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../contexts/AuthContext';
+import { canCreatePurchaseOrders } from '../lib/roles';
 import { format } from 'date-fns';
 import { PlusIcon, ShoppingCartIcon } from '@heroicons/react/24/outline';
 import toast from 'react-hot-toast';
@@ -18,8 +19,8 @@ const STATUS_BADGE = {
 };
 
 export default function PurchaseOrders() {
-    const { role, user } = useAuth();
-    const canCreate = ['admin', 'warehouse_manager'].includes(role);
+    const { role } = useAuth();
+    const canCreate = canCreatePurchaseOrders(role);
 
     const [orders, setOrders] = useState([]);
     const [products, setProducts] = useState([]);
