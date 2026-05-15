@@ -1,16 +1,16 @@
 import React, { useEffect, useState } from 'react';
-import Layout from '../components/Layout';
-import { useAuth } from '../contexts/AuthContext';
-import { supabase } from '../lib/supabase';
-import { getStockStatus } from '../lib/predictions';
+import { format } from 'date-fns';
 import {
+    ArrowsRightLeftIcon,
+    ClockIcon,
     CubeIcon,
     ExclamationTriangleIcon,
     ShoppingCartIcon,
-    ArrowsRightLeftIcon,
-    ClockIcon,
 } from '@heroicons/react/24/outline';
-import { format } from 'date-fns';
+import Layout from '../components/Layout';
+import { useAuth } from '../contexts/AuthContext';
+import { getStockStatus } from '../lib/predictions';
+import { supabase } from '../lib/supabase';
 
 function StatCard({ icon: Icon, label, value, color = 'bg-amber-50 text-amber-600' }) {
     return (
@@ -19,7 +19,7 @@ function StatCard({ icon: Icon, label, value, color = 'bg-amber-50 text-amber-60
                 <Icon className="w-6 h-6" />
             </div>
             <div>
-                <p className="text-2xl font-bold text-gray-800">{value ?? '—'}</p>
+                <p className="text-2xl font-bold text-gray-800">{value ?? '-'}</p>
                 <p className="text-sm text-gray-500">{label}</p>
             </div>
         </div>
@@ -55,7 +55,7 @@ export default function Dashboard() {
             ]);
 
             const low = (products || []).filter(
-                (p) => getStockStatus(p) === 'low' || getStockStatus(p) === 'critical'
+                (product) => getStockStatus(product) === 'low' || getStockStatus(product) === 'critical'
             );
 
             setStats({
@@ -68,17 +68,18 @@ export default function Dashboard() {
             setPendingOrders(orders || []);
             setLoading(false);
         }
+
         load();
     }, []);
 
-    const greeting = () => {
+    function greeting() {
         const hour = new Date().getHours();
         if (hour < 12) return 'Good morning';
         if (hour < 17) return 'Good afternoon';
         return 'Good evening';
-    };
+    }
 
-    const MOVEMENT_TYPE_COLOR = {
+    const movementTypeColor = {
         sale: 'bg-red-100 text-red-700',
         restock: 'bg-green-100 text-green-700',
         adjustment: 'bg-blue-100 text-blue-700',
@@ -97,17 +98,15 @@ export default function Dashboard() {
 
     return (
         <Layout title="Dashboard">
-            {/* Greeting */}
             <div className="mb-6">
                 <h2 className="text-2xl font-bold text-gray-800">
-                    {greeting()}, {profile?.full_name?.split(' ')[0] || 'there'} 👋
+                    {greeting()}, {profile?.full_name?.split(' ')[0] || 'there'}
                 </h2>
                 <p className="text-gray-500 text-sm mt-1">
-                    {format(new Date(), 'EEEE, MMMM d, yyyy')} — Here's your inventory overview.
+                    {format(new Date(), 'EEEE, MMMM d, yyyy')} - Here is your inventory overview.
                 </p>
             </div>
 
-            {/* Stats row — visible based on role */}
             {(role === 'admin' || role === 'inventory_manager' || role === 'procurement_manager' || role === 'approval_manager') && (
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 mb-6">
                     {role === 'admin' && (
@@ -134,8 +133,7 @@ export default function Dashboard() {
             )}
 
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                {/* Low Stock Alerts */}
-                {(role !== 'sales_operator') && (
+                {role !== 'sales_operator' && (
                     <div className="card">
                         <div className="flex items-center gap-2 mb-4">
                             <ExclamationTriangleIcon className="w-5 h-5 text-yellow-500" />
@@ -144,22 +142,22 @@ export default function Dashboard() {
                         {lowStock.length === 0 ? (
                             <div className="text-center py-8 text-gray-400">
                                 <CubeIcon className="w-10 h-10 mx-auto mb-2 opacity-30" />
-                                <p className="text-sm">All stock levels are healthy!</p>
+                                <p className="text-sm">All stock levels are healthy.</p>
                             </div>
                         ) : (
                             <div className="space-y-2">
-                                {lowStock.map((p) => {
-                                    const s = getStockStatus(p);
+                                {lowStock.map((product) => {
+                                    const stockStatus = getStockStatus(product);
                                     return (
-                                        <div key={p.id} className="flex items-center justify-between py-2 border-b border-gray-50 last:border-0">
+                                        <div key={product.id} className="flex items-center justify-between py-2 border-b border-gray-50 last:border-0">
                                             <div>
-                                                <p className="text-sm font-medium text-gray-700">{p.name}</p>
-                                                <p className="text-xs text-gray-400">{p.sku}</p>
+                                                <p className="text-sm font-medium text-gray-700">{product.name}</p>
+                                                <p className="text-xs text-gray-400">{product.sku}</p>
                                             </div>
                                             <div className="text-right">
-                                                <p className="text-sm font-bold text-gray-700">{p.current_stock} units</p>
-                                                <span className={s === 'critical' ? 'badge-critical' : 'badge-low'}>
-                                                    {s === 'critical' ? 'Critical' : 'Low'}
+                                                <p className="text-sm font-bold text-gray-700">{product.current_stock} units</p>
+                                                <span className={stockStatus === 'critical' ? 'badge-critical' : 'badge-low'}>
+                                                    {stockStatus === 'critical' ? 'Critical' : 'Low'}
                                                 </span>
                                             </div>
                                         </div>
@@ -170,7 +168,6 @@ export default function Dashboard() {
                     </div>
                 )}
 
-                {/* Recent Movements */}
                 <div className="card">
                     <div className="flex items-center gap-2 mb-4">
                         <ArrowsRightLeftIcon className="w-5 h-5 text-blue-500" />
@@ -183,20 +180,21 @@ export default function Dashboard() {
                         </div>
                     ) : (
                         <div className="space-y-2">
-                            {movements.map((m) => (
-                                <div key={m.id} className="flex items-center justify-between py-2 border-b border-gray-50 last:border-0">
+                            {movements.map((movement) => (
+                                <div key={movement.id} className="flex items-center justify-between py-2 border-b border-gray-50 last:border-0">
                                     <div>
-                                        <p className="text-sm font-medium text-gray-700">{m.products?.name}</p>
+                                        <p className="text-sm font-medium text-gray-700">{movement.products?.name}</p>
                                         <p className="text-xs text-gray-400">
-                                            {format(new Date(m.created_at), 'MMM d, h:mm a')}
+                                            {format(new Date(movement.created_at), 'MMM d, h:mm a')}
                                         </p>
                                     </div>
                                     <div className="flex items-center gap-2">
-                                        <span className={`text-xs px-2 py-0.5 rounded-full font-medium capitalize ${MOVEMENT_TYPE_COLOR[m.movement_type]}`}>
-                                            {m.movement_type}
+                                        <span className={`text-xs px-2 py-0.5 rounded-full font-medium capitalize ${movementTypeColor[movement.movement_type]}`}>
+                                            {movement.movement_type}
                                         </span>
                                         <span className="text-sm font-bold text-gray-700">
-                                            {m.movement_type === 'sale' || m.movement_type === 'damage' ? '-' : '+'}{m.quantity}
+                                            {movement.movement_type === 'sale' || movement.movement_type === 'damage' ? '-' : '+'}
+                                            {movement.quantity}
                                         </span>
                                     </div>
                                 </div>
@@ -205,7 +203,6 @@ export default function Dashboard() {
                     )}
                 </div>
 
-                {/* Pending Orders (for approval_manager / admin) */}
                 {(role === 'approval_manager' || role === 'admin') && (
                     <div className="card lg:col-span-2">
                         <div className="flex items-center gap-2 mb-4">
@@ -231,21 +228,25 @@ export default function Dashboard() {
                                         </tr>
                                     </thead>
                                     <tbody>
-                                        {pendingOrders.map((o) => (
-                                            <tr key={o.id} className="table-row">
-                                                <td className="table-cell font-mono text-xs">{o.order_number}</td>
-                                                <td className="table-cell">{o.products?.name}</td>
-                                                <td className="table-cell font-semibold">{o.quantity_ordered}</td>
+                                        {pendingOrders.map((order) => (
+                                            <tr key={order.id} className="table-row">
+                                                <td className="table-cell font-mono text-xs">{order.order_number}</td>
+                                                <td className="table-cell">{order.products?.name}</td>
+                                                <td className="table-cell font-semibold">{order.quantity_ordered}</td>
                                                 <td className="table-cell capitalize">
-                                                    {o.triggered_by === 'ai_prediction' ? '🤖 AI' : '✋ Manual'}
+                                                    {order.triggered_by === 'ai_prediction' ? 'Forecast Recommendation' : 'Manual'}
                                                 </td>
                                                 <td className="table-cell">
-                                                    <span className={
-                                                        o.predicted_days_until_stockout < 7 ? 'text-red-600 font-bold' :
-                                                            o.predicted_days_until_stockout < 14 ? 'text-yellow-600 font-semibold' :
-                                                                'text-green-600'
-                                                    }>
-                                                        {o.predicted_days_until_stockout ?? '—'} days
+                                                    <span
+                                                        className={
+                                                            order.predicted_days_until_stockout < 7
+                                                                ? 'text-red-600 font-bold'
+                                                                : order.predicted_days_until_stockout < 14
+                                                                    ? 'text-yellow-600 font-semibold'
+                                                                    : 'text-green-600'
+                                                        }
+                                                    >
+                                                        {order.predicted_days_until_stockout ?? '-'} days
                                                     </span>
                                                 </td>
                                             </tr>
@@ -257,7 +258,6 @@ export default function Dashboard() {
                     </div>
                 )}
 
-                {/* Sales operator: quick notes */}
                 {role === 'sales_operator' && (
                     <div className="card">
                         <h3 className="font-semibold text-gray-800 mb-2">Quick Tips</h3>
@@ -269,7 +269,6 @@ export default function Dashboard() {
                     </div>
                 )}
 
-                {/* Staff widget */}
                 {role === 'staff' && (
                     <div className="card">
                         <h3 className="font-semibold text-gray-800 mb-3">Items to Restock</h3>
@@ -277,10 +276,10 @@ export default function Dashboard() {
                             <p className="text-sm text-gray-400">No urgent restocks needed.</p>
                         ) : (
                             <ul className="space-y-2">
-                                {lowStock.map((p) => (
-                                    <li key={p.id} className="flex justify-between text-sm">
-                                        <span className="text-gray-700">{p.name}</span>
-                                        <span className="font-bold text-gray-800">{p.current_stock} left</span>
+                                {lowStock.map((product) => (
+                                    <li key={product.id} className="flex justify-between text-sm">
+                                        <span className="text-gray-700">{product.name}</span>
+                                        <span className="font-bold text-gray-800">{product.current_stock} left</span>
                                     </li>
                                 ))}
                             </ul>

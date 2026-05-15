@@ -1,14 +1,15 @@
-import React, { useEffect, useState, useCallback } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
+import { format } from 'date-fns';
+import { PaperAirplaneIcon, UsersIcon } from '@heroicons/react/24/outline';
+import toast from 'react-hot-toast';
 import Layout from '../components/Layout';
 import { supabase } from '../lib/supabase';
-import { format } from 'date-fns';
-import { UsersIcon, PaperAirplaneIcon } from '@heroicons/react/24/outline';
-import toast from 'react-hot-toast';
-import { ROLES, ROLE_COLORS, ROLE_LABELS } from '../lib/roles';
+import { ROLE_COLORS, ROLE_LABELS, ROLES } from '../lib/roles';
 
 export default function UserManagement() {
     const [users, setUsers] = useState([]);
     const [loading, setLoading] = useState(true);
+    const [inviteFullName, setInviteFullName] = useState('');
     const [inviteEmail, setInviteEmail] = useState('');
     const [inviteRole, setInviteRole] = useState('staff');
     const [inviting, setInviting] = useState(false);
@@ -19,53 +20,61 @@ export default function UserManagement() {
             .from('profiles')
             .select('*')
             .order('created_at', { ascending: false });
-        if (error) toast.error('Failed to load users');
-        else setUsers(data || []);
+
+        if (error) {
+            toast.error('Failed to load users');
+        } else {
+            setUsers(data || []);
+        }
         setLoading(false);
     }, []);
 
-    useEffect(() => { load(); }, [load]);
+    useEffect(() => {
+        load();
+    }, [load]);
 
     async function handleRoleChange(userId, newRole) {
         const { error } = await supabase
             .from('profiles')
             .update({ role: newRole })
             .eq('id', userId);
-        if (error) toast.error('Failed to update role');
-        else {
-            toast.success('Role updated!');
-            load();
+
+        if (error) {
+            toast.error(`Failed to update role: ${error.message}`);
+        } else {
+            toast.success('Role updated');
+            await load();
         }
     }
 
-    async function handleInvite(e) {
-        e.preventDefault();
+    async function handleInvite(event) {
+        event.preventDefault();
         if (!inviteEmail) return;
+
         setInviting(true);
-        const { error } = await supabase.auth.admin?.inviteUserByEmail
-            ? supabase.auth.admin.inviteUserByEmail(inviteEmail, {
-                data: { role: inviteRole },
-            })
-            : { error: { message: 'Invite via Supabase Dashboard: Authentication > Users > Invite User' } };
+        const { error } = await supabase.functions.invoke('invite-user', {
+            body: {
+                email: inviteEmail,
+                fullName: inviteFullName.trim() || null,
+                role: inviteRole,
+            },
+        });
 
         if (error) {
-            // Supabase client-side SDK doesn't expose admin.inviteUserByEmail
-            // Show instructions instead
-            toast.error(
-                'To invite: Go to Supabase Dashboard → Authentication → Users → Invite User.',
-                { duration: 6000 }
-            );
+            toast.error(error.message || 'Failed to send invitation');
         } else {
             toast.success(`Invitation sent to ${inviteEmail}`);
+            setInviteFullName('');
             setInviteEmail('');
+            setInviteRole('staff');
         }
+
         setInviting(false);
     }
 
     return (
         <Layout title="User Management">
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                {/* Invite Panel */}
                 <div className="card">
                     <h3 className="font-bold text-gray-800 mb-4 flex items-center gap-2">
                         <PaperAirplaneIcon className="w-5 h-5 text-accent" />
@@ -73,35 +82,50 @@ export default function UserManagement() {
                     </h3>
                     <form onSubmit={handleInvite} className="space-y-4">
                         <div>
+                            <label className="block text-xs font-medium text-gray-600 mb-1">Full Name</label>
+                            <input
+                                className="input-field"
+                                placeholder="Alex Contractor"
+                                value={inviteFullName}
+                                onChange={(event) => setInviteFullName(event.target.value)}
+                            />
+                        </div>
+                        <div>
                             <label className="block text-xs font-medium text-gray-600 mb-1">Email Address</label>
                             <input
                                 type="email"
                                 className="input-field"
                                 placeholder="user@company.com"
                                 value={inviteEmail}
-                                onChange={(e) => setInviteEmail(e.target.value)}
+                                onChange={(event) => setInviteEmail(event.target.value)}
                                 required
                             />
                         </div>
                         <div>
                             <label className="block text-xs font-medium text-gray-600 mb-1">Assign Role</label>
-                            <select className="input-field" value={inviteRole} onChange={(e) => setInviteRole(e.target.value)}>
-                                {ROLES.map((r) => <option key={r} value={r}>{ROLE_LABELS[r]}</option>)}
+                            <select
+                                className="input-field"
+                                value={inviteRole}
+                                onChange={(event) => setInviteRole(event.target.value)}
+                            >
+                                {ROLES.map((role) => (
+                                    <option key={role} value={role}>{ROLE_LABELS[role]}</option>
+                                ))}
                             </select>
                         </div>
                         <button type="submit" disabled={inviting} className="btn-primary w-full">
-                            {inviting ? 'Sending…' : 'Send Invitation'}
+                            {inviting ? 'Sending...' : 'Send Invitation'}
                         </button>
                     </form>
                     <div className="mt-4 p-3 bg-amber-50 rounded-lg border border-amber-100">
                         <p className="text-xs text-amber-700">
-                            <strong>Note:</strong> To invite users, use Supabase Dashboard → Authentication → Users → Invite User,
-                            and set their role in the profiles table.
+                            <strong>Setup:</strong> Deploy the `invite-user` Edge Function and configure
+                            `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY`, and `SUPABASE_ANON_KEY` in Supabase
+                            before using this panel.
                         </p>
                     </div>
                 </div>
 
-                {/* Users Table */}
                 <div className="lg:col-span-2 card p-0 overflow-hidden">
                     <div className="px-4 py-3 border-b border-gray-100 flex items-center gap-2">
                         <UsersIcon className="w-5 h-5 text-gray-400" />
@@ -122,35 +146,35 @@ export default function UserManagement() {
                                 {loading ? (
                                     <tr><td colSpan={5} className="text-center py-10"><div className="spinner mx-auto" /></td></tr>
                                 ) : users.length === 0 ? (
-                                    <tr><td colSpan={5} className="text-center py-10 text-gray-400 text-sm">
-                                        No users found.
-                                    </td></tr>
-                                ) : users.map((u) => (
-                                    <tr key={u.id} className="table-row">
+                                    <tr><td colSpan={5} className="text-center py-10 text-gray-400 text-sm">No users found.</td></tr>
+                                ) : users.map((user) => (
+                                    <tr key={user.id} className="table-row">
                                         <td className="table-cell">
                                             <div className="flex items-center gap-2">
                                                 <div className="w-7 h-7 rounded-full bg-accent flex items-center justify-center text-white text-xs font-bold flex-shrink-0">
-                                                    {u.full_name?.[0]?.toUpperCase() || '?'}
+                                                    {user.full_name?.[0]?.toUpperCase() || '?'}
                                                 </div>
-                                                <span className="font-medium text-gray-800">{u.full_name || 'Unnamed User'}</span>
+                                                <span className="font-medium text-gray-800">{user.full_name || 'Unnamed User'}</span>
                                             </div>
                                         </td>
-                                        <td className="table-cell font-mono text-xs text-gray-400 max-w-[120px] truncate">{u.id}</td>
+                                        <td className="table-cell font-mono text-xs text-gray-400 max-w-[120px] truncate">{user.id}</td>
                                         <td className="table-cell">
-                                            <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${ROLE_COLORS[u.role] || ''}`}>
-                                                {ROLE_LABELS[u.role] || u.role}
+                                            <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${ROLE_COLORS[user.role] || ''}`}>
+                                                {ROLE_LABELS[user.role] || user.role}
                                             </span>
                                         </td>
                                         <td className="table-cell text-xs text-gray-500">
-                                            {u.created_at ? format(new Date(u.created_at), 'MMM d, yyyy') : '—'}
+                                            {user.created_at ? format(new Date(user.created_at), 'MMM d, yyyy') : '-'}
                                         </td>
                                         <td className="table-cell">
                                             <select
                                                 className="input-field text-xs py-1 w-auto"
-                                                value={u.role || 'staff'}
-                                                onChange={(e) => handleRoleChange(u.id, e.target.value)}
+                                                value={user.role || 'staff'}
+                                                onChange={(event) => handleRoleChange(user.id, event.target.value)}
                                             >
-                                                {ROLES.map((r) => <option key={r} value={r}>{ROLE_LABELS[r]}</option>)}
+                                                {ROLES.map((role) => (
+                                                    <option key={role} value={role}>{ROLE_LABELS[role]}</option>
+                                                ))}
                                             </select>
                                         </td>
                                     </tr>

@@ -1,41 +1,39 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { useAuth } from '../contexts/AuthContext';
 import { WrenchScrewdriverIcon } from '@heroicons/react/24/outline';
 import toast from 'react-hot-toast';
+import { useAuth } from '../contexts/AuthContext';
+import { getPostLoginRoute } from '../lib/navigation';
 
 export default function Login() {
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
-    const [loading, setLoading] = useState(false);
-    const { signIn } = useAuth();
+    const [submitting, setSubmitting] = useState(false);
+    const { signIn, user, role, loading } = useAuth();
     const navigate = useNavigate();
 
-    async function handleSubmit(e) {
-        e.preventDefault();
-        setLoading(true);
+    useEffect(() => {
+        if (!loading && user && role) {
+            navigate(getPostLoginRoute(role), { replace: true });
+        }
+    }, [loading, navigate, role, user]);
+
+    async function handleSubmit(event) {
+        event.preventDefault();
+        setSubmitting(true);
+
         try {
             await signIn(email, password);
-            // The role will be set after profile fetch; redirect after a tick
-            setTimeout(() => {
-                const storedRole = localStorage.getItem('hw_role');
-                if (storedRole === 'approval_manager') {
-                    navigate('/order-approval');
-                } else {
-                    navigate('/dashboard');
-                }
-            }, 500);
-        } catch (err) {
-            toast.error(err.message || 'Login failed. Check your credentials.');
+        } catch (error) {
+            toast.error(error.message || 'Login failed. Check your credentials.');
         } finally {
-            setLoading(false);
+            setSubmitting(false);
         }
     }
 
     return (
         <div className="min-h-screen bg-gradient-to-br from-sidebar via-sidebar-hover to-gray-900 flex items-center justify-center p-4">
             <div className="w-full max-w-md">
-                {/* Brand */}
                 <div className="text-center mb-8">
                     <div className="w-16 h-16 bg-accent rounded-2xl mx-auto flex items-center justify-center mb-4 shadow-lg">
                         <WrenchScrewdriverIcon className="w-8 h-8 text-white" />
@@ -44,7 +42,6 @@ export default function Login() {
                     <p className="text-gray-400 mt-1 text-sm">Inventory Management System</p>
                 </div>
 
-                {/* Login card */}
                 <div className="bg-white rounded-2xl shadow-2xl p-8">
                     <h2 className="text-xl font-bold text-gray-800 mb-6">Sign In</h2>
                     <form onSubmit={handleSubmit} className="space-y-5">
@@ -57,7 +54,7 @@ export default function Login() {
                                 className="input-field"
                                 placeholder="you@company.com"
                                 value={email}
-                                onChange={(e) => setEmail(e.target.value)}
+                                onChange={(event) => setEmail(event.target.value)}
                                 required
                                 autoComplete="email"
                             />
@@ -69,22 +66,22 @@ export default function Login() {
                             <input
                                 type="password"
                                 className="input-field"
-                                placeholder="••••••••"
+                                placeholder="Password"
                                 value={password}
-                                onChange={(e) => setPassword(e.target.value)}
+                                onChange={(event) => setPassword(event.target.value)}
                                 required
                                 autoComplete="current-password"
                             />
                         </div>
                         <button
                             type="submit"
-                            disabled={loading}
+                            disabled={submitting}
                             className="btn-primary w-full flex items-center justify-center gap-2 py-3 text-base"
                         >
-                            {loading ? (
+                            {submitting ? (
                                 <>
                                     <div className="spinner !w-4 !h-4" />
-                                    Signing in…
+                                    Signing in...
                                 </>
                             ) : (
                                 'Sign In'

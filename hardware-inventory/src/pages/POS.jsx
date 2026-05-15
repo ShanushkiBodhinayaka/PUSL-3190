@@ -1,7 +1,4 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import Layout from '../components/Layout';
-import { useAuth } from '../contexts/AuthContext';
-import { supabase } from '../lib/supabase';
 import {
     MagnifyingGlassIcon,
     MinusIcon,
@@ -10,6 +7,8 @@ import {
     TrashIcon,
 } from '@heroicons/react/24/outline';
 import toast from 'react-hot-toast';
+import Layout from '../components/Layout';
+import { supabase } from '../lib/supabase';
 
 const PAYMENT_METHODS = ['cash', 'card', 'bank_transfer', 'mobile_payment', 'other'];
 const PAYMENT_STATUSES = ['paid', 'pending'];
@@ -18,12 +17,7 @@ function money(value) {
     return `$${Number(value || 0).toFixed(2)}`;
 }
 
-function createReceiptNumber() {
-    return `POS-${Date.now()}`;
-}
-
 export default function POS() {
-    const { user } = useAuth();
     const [products, setProducts] = useState([]);
     const [search, setSearch] = useState('');
     const [cart, setCart] = useState([]);
@@ -141,68 +135,35 @@ export default function POS() {
         }
 
         setCheckingOut(true);
-        const receiptNumber = createReceiptNumber();
 
         try {
-            const { data: sale, error: saleError } = await supabase
-                .from('sales')
-                .insert([{
-                    receipt_number: receiptNumber,
-                    customer_name: customerName.trim() || null,
-                    subtotal,
-                    discount_amount: discount,
-                    total_amount: total,
-                    payment_method: paymentMethod,
-                    payment_status: paymentStatus,
-                    created_by: user?.id,
-                }])
-                .select()
-                .single();
+            const { data, error } = await supabase.rpc('complete_sale', {
+                p_customer_name: customerName.trim() || null,
+                p_discount_amount: discount,
+                p_payment_method: paymentMethod,
+                p_payment_status: paymentStatus,
+                p_items: cart.map((item) => ({
+                    product_id: item.product_id,
+                    quantity: item.quantity,
+                })),
+            });
 
-            if (saleError) throw saleError;
+            if (error) throw error;
 
-            const saleItems = cart.map((item) => ({
-                sale_id: sale.id,
-                product_id: item.product_id,
-                quantity: item.quantity,
-                unit_price: item.unit_price,
-                line_total: item.quantity * item.unit_price,
-            }));
-
-            const { error: itemsError } = await supabase.from('sale_items').insert(saleItems);
-            if (itemsError) throw itemsError;
-
-            const movements = cart.map((item) => ({
-                product_id: item.product_id,
-                movement_type: 'sale',
-                quantity: item.quantity,
-                notes: `Receipt ${receiptNumber}`,
-                created_by: user?.id,
-            }));
-
-            const { error: movementError } = await supabase.from('stock_movements').insert(movements);
-            if (movementError) throw movementError;
-
-            const stockUpdates = await Promise.all(cart.map((item) =>
-                supabase
-                    .from('products')
-                    .update({ current_stock: item.current_stock - item.quantity })
-                    .eq('id', item.product_id)
-            ));
-            const failedStockUpdate = stockUpdates.find((result) => result.error);
-            if (failedStockUpdate) throw failedStockUpdate.error;
-
-            setLastReceipt({ receiptNumber, total });
+            setLastReceipt({
+                receiptNumber: data.receipt_number,
+                total: data.total_amount,
+            });
             setCart([]);
             setCustomerName('');
             setDiscountAmount('');
             setPaymentMethod('cash');
             setPaymentStatus('paid');
             setSearch('');
-            toast.success(`Sale completed: ${receiptNumber}`);
-            loadProducts();
+            toast.success(`Sale completed: ${data.receipt_number}`);
+            await loadProducts();
         } catch (error) {
-            toast.error('Checkout failed: ' + error.message);
+            toast.error(`Checkout failed: ${error.message}`);
         } finally {
             setCheckingOut(false);
         }

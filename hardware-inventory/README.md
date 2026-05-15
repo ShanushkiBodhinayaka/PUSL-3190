@@ -1,70 +1,147 @@
-# Getting Started with Create React App
+# HardwareHub
 
-This project was bootstrapped with [Create React App](https://github.com/facebook/create-react-app).
+HardwareHub is a role-based hardware inventory management app built with React and Supabase. It supports stock tracking, point-of-sale checkout, purchase order workflows, reporting, and user administration.
 
-## Available Scripts
+## Features
 
-In the project directory, you can run:
+- Authentication with role-aware routing
+- Inventory catalog with low-stock indicators
+- POS checkout with transactional stock updates
+- Manual stock movement recording
+- Forecast-based reorder suggestions powered by trained time-series models when available
+- Purchase order creation and approval workflow
+- Reporting for sales trends and purchase order history
+- Admin user management with invite support through a Supabase Edge Function
 
-### `npm start`
+## Tech Stack
 
-Runs the app in the development mode.\
-Open [http://localhost:3000](http://localhost:3000) to view it in your browser.
+- React 19
+- React Router
+- Tailwind CSS
+- Supabase Auth, Database, Realtime, and Edge Functions
+- Recharts
 
-The page will reload when you make changes.\
-You may also see any lint errors in the console.
+## Project Structure
 
-### `npm test`
+```text
+src/
+  components/        Shared layout and route guards
+  contexts/          Auth context
+  lib/               Supabase client and domain helpers
+  pages/             Route screens
+supabase/
+  functions/
+    invite-user/     Edge Function for admin-only invitations
+forecasting/         Synthetic history generation and model training pipeline
+supabase-schema.sql  Database schema, RLS policies, and RPC functions
+seed-data.sql        Sample products and movements
+```
 
-Launches the test runner in the interactive watch mode.\
-See the section about [running tests](https://facebook.github.io/create-react-app/docs/running-tests) for more information.
+## Setup
 
-### `npm run build`
+1. Install dependencies:
 
-Builds the app for production to the `build` folder.\
-It correctly bundles React in production mode and optimizes the build for the best performance.
+```bash
+npm install
+```
 
-The build is minified and the filenames include the hashes.\
-Your app is ready to be deployed!
+2. Create a `.env` file from `.env.example`.
 
-See the section about [deployment](https://facebook.github.io/create-react-app/docs/deployment) for more information.
+3. In Supabase SQL Editor, run:
 
-### `npm run eject`
+- `supabase-schema.sql`
+- `seed-data.sql` (optional sample data)
 
-**Note: this is a one-way operation. Once you `eject`, you can't go back!**
+4. Deploy the invite function:
 
-If you aren't satisfied with the build tool and configuration choices, you can `eject` at any time. This command will remove the single build dependency from your project.
+```bash
+supabase functions deploy invite-user
+```
 
-Instead, it will copy all the configuration files and the transitive dependencies (webpack, Babel, ESLint, etc) right into your project so you have full control over them. All of the commands except `eject` will still work, but they will point to the copied scripts so you can tweak them. At this point you're on your own.
+5. Configure Supabase function secrets:
 
-You don't have to ever use `eject`. The curated feature set is suitable for small and middle deployments, and you shouldn't feel obligated to use this feature. However we understand that this tool wouldn't be useful if you couldn't customize it when you are ready for it.
+```bash
+supabase secrets set SUPABASE_URL=...
+supabase secrets set SUPABASE_ANON_KEY=...
+supabase secrets set SUPABASE_SERVICE_ROLE_KEY=...
+```
 
-## Learn More
+6. Start the app:
 
-You can learn more in the [Create React App documentation](https://facebook.github.io/create-react-app/docs/getting-started).
+```bash
+npm start
+```
 
-To learn React, check out the [React documentation](https://reactjs.org/).
+## Forecasting Workflow
 
-### Code Splitting
+If you want the app to use trained forecasts instead of fallback heuristics:
 
-This section has moved here: [https://facebook.github.io/create-react-app/docs/code-splitting](https://facebook.github.io/create-react-app/docs/code-splitting)
+1. Generate retail-style history for the current catalog:
 
-### Analyzing the Bundle Size
+```bash
+python forecasting/generate_synthetic_history.py
+```
 
-This section has moved here: [https://facebook.github.io/create-react-app/docs/analyzing-the-bundle-size](https://facebook.github.io/create-react-app/docs/analyzing-the-bundle-size)
+2. Train forecasts and export SQL:
 
-### Making a Progressive Web App
+```bash
+python forecasting/train_forecasts.py
+```
 
-This section has moved here: [https://facebook.github.io/create-react-app/docs/making-a-progressive-web-app](https://facebook.github.io/create-react-app/docs/making-a-progressive-web-app)
+3. Run `forecasting/generated/demand_forecasts.sql` in Supabase.
 
-### Advanced Configuration
+The app will then use rows from `demand_forecasts` when generating forecast-based purchase orders.
 
-This section has moved here: [https://facebook.github.io/create-react-app/docs/advanced-configuration](https://facebook.github.io/create-react-app/docs/advanced-configuration)
+## Environment Variables
 
-### Deployment
+Frontend:
 
-This section has moved here: [https://facebook.github.io/create-react-app/docs/deployment](https://facebook.github.io/create-react-app/docs/deployment)
+- `REACT_APP_SUPABASE_URL`
+- `REACT_APP_SUPABASE_KEY`
 
-### `npm run build` fails to minify
+Edge Function:
 
-This section has moved here: [https://facebook.github.io/create-react-app/docs/troubleshooting#npm-run-build-fails-to-minify](https://facebook.github.io/create-react-app/docs/troubleshooting#npm-run-build-fails-to-minify)
+- `SUPABASE_URL`
+- `SUPABASE_ANON_KEY`
+- `SUPABASE_SERVICE_ROLE_KEY`
+
+## Roles
+
+- `admin`: full access, user management, approvals
+- `inventory_manager`: inventory maintenance and stock control
+- `sales_operator`: POS and sales-driven stock movement
+- `procurement_manager`: create purchase orders and view reports
+- `approval_manager`: approve or reject purchase orders
+- `staff`: view inventory and record basic stock movements
+
+## Database Notes
+
+The schema includes two important RPC functions used by the frontend:
+
+- `complete_sale(...)`: creates the sale, sale items, stock movements, and stock deductions in one transaction
+- `record_stock_movement(...)`: records a movement and updates stock in one transaction
+- `demand_forecasts`: stores trained model outputs that the frontend prefers over heuristic predictions
+
+This prevents partial writes from leaving the inventory in an inconsistent state.
+
+## Scripts
+
+- `npm start`: run the development server
+- `npm run build`: build the production bundle
+- `npm test -- --watchAll=false`: run the test suite once
+
+## Testing
+
+The current automated tests cover:
+
+- stock prediction logic
+- role helper logic
+- post-login navigation logic
+- protected route behavior
+
+## Remaining Operational Work
+
+- deploy the Supabase Edge Function in your actual Supabase project
+- apply the latest SQL schema to the target database
+- create real auth users or send invitations from the admin panel
+- verify each role end-to-end in the deployed environment

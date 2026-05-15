@@ -36,7 +36,7 @@ export default function OrderCard({ order, productName }) {
                 <div>
                     <p className="text-gray-400">Triggered By</p>
                     <p className="font-semibold text-gray-700 capitalize">
-                        {order.triggered_by === 'ai_prediction' ? '🤖 AI Prediction' : '✋ Manual'}
+                        {order.triggered_by === 'ai_prediction' ? 'Forecast Recommendation' : 'Manual'}
                     </p>
                 </div>
                 {order.predicted_days_until_stockout !== null && (

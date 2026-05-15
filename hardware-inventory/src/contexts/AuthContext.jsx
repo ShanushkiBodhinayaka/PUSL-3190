@@ -20,11 +20,9 @@ export function AuthProvider({ children }) {
         if (!error && data) {
             setProfile(data);
             setRole(data.role);
-            localStorage.setItem('hw_role', data.role);
         } else {
             setProfile(null);
             setRole(null);
-            localStorage.removeItem('hw_role');
         }
     }
 
@@ -48,7 +46,6 @@ export function AuthProvider({ children }) {
                 } else {
                     setProfile(null);
                     setRole(null);
-                    localStorage.removeItem('hw_role');
                 }
                 setLoading(false);
             }
@@ -68,7 +65,6 @@ export function AuthProvider({ children }) {
         setUser(null);
         setProfile(null);
         setRole(null);
-        localStorage.removeItem('hw_role');
     }
 
     const value = {

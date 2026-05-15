@@ -1,0 +1,61 @@
+import { analyzeStock, buildForecastPrediction, getStockStatus } from './predictions';
+
+describe('prediction helpers', () => {
+    const product = {
+        id: 'product-1',
+        current_stock: 12,
+        reorder_point: 10,
+        reorder_quantity: 40,
+    };
+
+    it('flags critical products when sales imply a near stockout', () => {
+        const movements = Array.from({ length: 6 }, () => ({
+            product_id: 'product-1',
+            movement_type: 'sale',
+            quantity: 10,
+        }));
+
+        expect(analyzeStock(product, movements)).toMatchObject({
+            riskLevel: 'critical',
+            shouldReorder: true,
+            suggestedQuantity: 40,
+        });
+    });
+
+    it('falls back to reorder point rules when there is no sales history', () => {
+        expect(analyzeStock(product, [])).toMatchObject({
+            riskLevel: 'ok',
+            shouldReorder: false,
+        });
+
+        expect(analyzeStock({ ...product, current_stock: 5 }, [])).toMatchObject({
+            riskLevel: 'critical',
+            shouldReorder: true,
+        });
+    });
+
+    it('returns stock status labels from current stock', () => {
+        expect(getStockStatus({ current_stock: 0, reorder_point: 10 })).toBe('out_of_stock');
+        expect(getStockStatus({ current_stock: 4, reorder_point: 10 })).toBe('critical');
+        expect(getStockStatus({ current_stock: 8, reorder_point: 10 })).toBe('low');
+        expect(getStockStatus({ current_stock: 15, reorder_point: 10 })).toBe('ok');
+    });
+
+    it('builds model-driven predictions from forecast rows', () => {
+        expect(buildForecastPrediction(product, {
+            predicted_daily_demand: 2.5,
+            predicted_demand: 35,
+            horizon_days: 14,
+            safety_stock: 10,
+            recommended_reorder_quantity: 60,
+            reorder_signal: true,
+            model_name: 'sarima',
+        })).toMatchObject({
+            source: 'forecast',
+            modelName: 'sarima',
+            shouldReorder: true,
+            suggestedQuantity: 60,
+            riskLevel: 'at_risk',
+        });
+    });
+});

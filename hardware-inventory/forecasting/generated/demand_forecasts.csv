@@ -1,0 +1,21 @@
+sku,product_name,model_name,training_data_source,history_start,history_end,forecast_date,horizon_days,predicted_demand,predicted_daily_demand,safety_stock,recommended_reorder_quantity,reorder_signal,validation_mae,validation_rmse,validation_mape,projected_stock
+BLT-HX-M10,Hex Bolts M10 x 50mm (50ct),holt_winters,synthetic_sales_history.csv,2024-11-22,2026-05-15,2026-05-15,14,182.57,13.0405,31,94,True,3.9882,4.8256,26.7928,-62.57
+SCR-DW-150,"Drywall Screws 1.5"" Box (200ct)",sarima,synthetic_sales_history.csv,2024-11-22,2026-05-15,2026-05-15,14,113.85,8.1324,25,131,True,3.1056,3.6008,81.5207,-105.85
+PNT-LT-W1G,Interior Latex Paint 1gal White,sarima,synthetic_sales_history.csv,2024-11-22,2026-05-15,2026-05-15,14,72.24,5.1603,18,56,True,2.5464,3.2139,39.8022,-37.24
+PNT-RK-9IN,"Paint Roller Kit 9""",holt_winters,synthetic_sales_history.csv,2024-11-22,2026-05-15,2026-05-15,14,69.83,4.9876,16,30,True,1.7517,2.2518,77.4931,-9.83
+OSB-4x8-716,"OSB Board 4x8 Sheet 7/16""",sarima,synthetic_sales_history.csv,2024-11-22,2026-05-15,2026-05-15,14,64.2,4.5858,16,72,True,2.1169,2.5314,81.3062,-55.2
+PLY-4x8-75,"Plywood 4x8 Sheet 3/4""",sarima,synthetic_sales_history.csv,2024-11-22,2026-05-15,2026-05-15,14,58.4,4.1713,15,52,True,1.5941,1.9282,52.9805,-36.4
+PIP-CP-075,"Copper Pipe 3/4"" x 10ft",sarima,synthetic_sales_history.csv,2024-11-22,2026-05-15,2026-05-15,14,49.68,3.5485,20,60,True,2.0335,2.3034,110.2744,-37.68
+WIR-EL-12,Electrical Wire 12AWG 100ft,sarima,synthetic_sales_history.csv,2024-11-22,2026-05-15,2026-05-15,14,28.06,2.0046,12,20,True,1.8,2.2371,98.107,-0.06
+PNT-EX-G1G,Exterior Paint 1gal Gray,sarima,synthetic_sales_history.csv,2024-11-22,2026-05-15,2026-05-15,14,27.99,1.9995,13,37,True,1.8302,2.335,78.1201,-23.99
+BRK-CB-20A,Circuit Breaker 20A,holt_winters,synthetic_sales_history.csv,2024-11-22,2026-05-15,2026-05-15,14,20.21,1.4439,8,24,True,1.2124,1.3946,66.0811,-15.21
+GRN-AG-45,"Angle Grinder 4.5""",sarima,synthetic_sales_history.csv,2024-11-22,2026-05-15,2026-05-15,14,7.22,0.5157,7,15,True,0.56,0.646,50.3126,-4.22
+SAW-CR-725,"Circular Saw 7.25""",seasonal_naive,synthetic_sales_history.csv,2024-11-22,2026-05-15,2026-05-15,14,4.0,0.2857,4,10,True,0.2143,0.4629,21.4286,2.0
+SCR-WD-300,"Wood Screws 3"" Box (100ct)",sarima,synthetic_sales_history.csv,2024-11-22,2026-05-15,2026-05-15,14,189.05,13.5035,50,200,False,3.5839,4.1125,27.7345,260.95
+PIP-PV-210,"PVC Pipe 2"" x 10ft",holt_winters,synthetic_sales_history.csv,2024-11-22,2026-05-15,2026-05-15,14,50.17,3.5834,30,100,False,1.1843,1.6348,48.6409,149.83
+VLV-BL-050,"Ball Valve 1/2""",sarima,synthetic_sales_history.csv,2024-11-22,2026-05-15,2026-05-15,14,42.59,3.0421,15,40,False,1.872,2.303,90.6321,42.41
+LMB-2x4-8,2x4x8 Lumber (Pine),seasonal_naive,synthetic_sales_history.csv,2024-11-22,2026-05-15,2026-05-15,14,40.0,2.8571,40,100,False,1.7143,2.3299,93.631,140.0
+BLK-CN-888,Concrete Block 8x8x16,holt_winters,synthetic_sales_history.csv,2024-11-22,2026-05-15,2026-05-15,14,32.43,2.3167,50,100,False,1.8043,2.4807,97.2762,217.57
+CMT-MX-60,Cement Mix 60lb Bag,holt_winters,synthetic_sales_history.csv,2024-11-22,2026-05-15,2026-05-15,14,31.83,2.2732,20,50,False,1.57,2.1948,64.1095,33.17
+SAF-HM-STD,Safety Helmet (Hard Hat),holt_winters,synthetic_sales_history.csv,2024-11-22,2026-05-15,2026-05-15,14,16.53,1.1808,11,25,False,1.2333,1.4685,99.9292,25.47
+DRL-CL-18V,Cordless Drill 18V,seasonal_naive,synthetic_sales_history.csv,2024-11-22,2026-05-15,2026-05-15,14,0.0,0.0,6,20,False,0.4286,0.6547,35.7143,14.0

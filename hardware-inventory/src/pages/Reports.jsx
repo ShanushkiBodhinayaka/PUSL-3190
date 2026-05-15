@@ -1,78 +1,105 @@
-import React, { useEffect, useState, useCallback } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import { format, subDays } from 'date-fns';
+import { ChartBarIcon } from '@heroicons/react/24/outline';
+import {
+    Bar,
+    BarChart,
+    CartesianGrid,
+    Legend,
+    Line,
+    LineChart,
+    ResponsiveContainer,
+    Tooltip,
+    XAxis,
+    YAxis,
+} from 'recharts';
 import Layout from '../components/Layout';
 import { supabase } from '../lib/supabase';
-import { format, subDays } from 'date-fns';
-import {
-    LineChart, Line, BarChart, Bar, XAxis, YAxis, CartesianGrid,
-    Tooltip, Legend, ResponsiveContainer
-} from 'recharts';
-import { ChartBarIcon } from '@heroicons/react/24/outline';
 
 export default function Reports() {
     const [topProducts, setTopProducts] = useState([]);
     const [allOrders, setAllOrders] = useState([]);
-    const [stockTrend, setStockTrend] = useState([]);
+    const [dailySalesTrend, setDailySalesTrend] = useState([]);
     const [loading, setLoading] = useState(true);
 
     const load = useCallback(async () => {
         setLoading(true);
         const thirtyDaysAgo = subDays(new Date(), 30).toISOString();
 
-        const [{ data: movements }, { data: orders }, { data: products }] = await Promise.all([
+        const [{ data: movements }, { data: orders }] = await Promise.all([
             supabase
                 .from('stock_movements')
-                .select('*, products(name)')
+                .select('product_id, quantity, created_at, products(name)')
                 .eq('movement_type', 'sale')
                 .gte('created_at', thirtyDaysAgo),
             supabase
                 .from('purchase_orders')
                 .select('*, products(name, sku)')
                 .order('created_at', { ascending: false }),
-            supabase.from('products').select('id, name, current_stock').limit(6).order('name'),
         ]);
 
-        // Top 10 consumed products
         const consumed = {};
-        (movements || []).forEach((m) => {
-            const name = m.products?.name || m.product_id;
-            consumed[name] = (consumed[name] || 0) + m.quantity;
+        (movements || []).forEach((movement) => {
+            const name = movement.products?.name || movement.product_id;
+            consumed[name] = (consumed[name] || 0) + movement.quantity;
         });
-        const sorted = Object.entries(consumed)
+
+        const sortedTopProducts = Object.entries(consumed)
             .sort((a, b) => b[1] - a[1])
             .slice(0, 10)
-            .map(([name, qty]) => ({ name: name.length > 20 ? name.slice(0, 20) + '…' : name, qty }));
-        setTopProducts(sorted);
+            .map(([name, qty]) => ({
+                name: name.length > 20 ? `${name.slice(0, 20)}...` : name,
+                qty,
+            }));
+        setTopProducts(sortedTopProducts);
 
-        // Stock trend (last 7 days — using current stock as snapshot)
-        const days = [];
-        for (let i = 6; i >= 0; i--) {
-            const day = format(subDays(new Date(), i), 'MMM d');
-            const entry = { day };
-            (products || []).slice(0, 3).forEach((p) => {
-                // Approximate trend: add back sales from that day
-                const daySales = (movements || [])
-                    .filter((m) => m.product_id === p.id && format(new Date(m.created_at), 'MMM d') === day)
-                    .reduce((s, m) => s + m.quantity, 0);
-                entry[p.name.split(' ')[0]] = Math.max(0, p.current_stock + daySales * (i + 1));
+        const topTrendProducts = Object.entries(consumed)
+            .sort((a, b) => b[1] - a[1])
+            .slice(0, 3)
+            .map(([name]) => name);
+
+        const trendRows = [];
+        for (let i = 6; i >= 0; i -= 1) {
+            const dayDate = subDays(new Date(), i);
+            const dayKey = format(dayDate, 'yyyy-MM-dd');
+            const row = { day: format(dayDate, 'MMM d') };
+
+            topTrendProducts.forEach((productName) => {
+                const dailyUnits = (movements || [])
+                    .filter((movement) =>
+                        (movement.products?.name || movement.product_id) === productName &&
+                        format(new Date(movement.created_at), 'yyyy-MM-dd') === dayKey
+                    )
+                    .reduce((sum, movement) => sum + movement.quantity, 0);
+
+                row[shortLabel(productName)] = dailyUnits;
             });
-            days.push(entry);
+
+            trendRows.push(row);
         }
-        setStockTrend(days);
+
+        setDailySalesTrend(trendRows);
         setAllOrders(orders || []);
         setLoading(false);
     }, []);
 
-    useEffect(() => { load(); }, [load]);
+    useEffect(() => {
+        load();
+    }, [load]);
 
-    const LINE_COLORS = ['#f59e0b', '#3b82f6', '#10b981'];
+    const lineColors = ['#f59e0b', '#3b82f6', '#10b981'];
 
-    const topProductKeys = stockTrend.length > 0
-        ? Object.keys(stockTrend[0]).filter((k) => k !== 'day')
-        : [];
+    const topProductKeys = useMemo(
+        () => (dailySalesTrend.length > 0 ? Object.keys(dailySalesTrend[0]).filter((key) => key !== 'day') : []),
+        [dailySalesTrend]
+    );
 
-    const STATUS_COLOR = {
-        pending: 'badge-pending', approved: 'badge-approved',
-        rejected: 'badge-rejected', ordered: 'badge-ordered', received: 'badge-received',
+    const statusColor = {
+        pending: 'badge-pending',
+        approved: 'badge-approved',
+        rejected: 'badge-rejected',
+        ordered: 'badge-ordered',
+        received: 'badge-received',
     };
 
     if (loading) {
@@ -82,28 +109,30 @@ export default function Reports() {
     return (
         <Layout title="Reports">
             <div className="space-y-6">
-                {/* Stock Trend Line Chart */}
                 <div className="card">
-                    <h3 className="font-bold text-gray-800 mb-4 flex items-center gap-2">
+                    <h3 className="font-bold text-gray-800 mb-2 flex items-center gap-2">
                         <ChartBarIcon className="w-5 h-5 text-accent" />
-                        Stock Levels — Last 7 Days (Top 3 Products)
+                        Daily Sales Trend - Last 7 Days
                     </h3>
-                    {stockTrend.length === 0 ? (
-                        <p className="text-gray-400 text-sm">No stock data available.</p>
+                    <p className="text-sm text-gray-500 mb-4">
+                        This chart shows actual units sold per day for the top three products over the last week.
+                    </p>
+                    {dailySalesTrend.length === 0 ? (
+                        <p className="text-gray-400 text-sm">No sales data available.</p>
                     ) : (
                         <ResponsiveContainer width="100%" height={260}>
-                            <LineChart data={stockTrend}>
+                            <LineChart data={dailySalesTrend}>
                                 <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
                                 <XAxis dataKey="day" tick={{ fontSize: 12 }} />
-                                <YAxis tick={{ fontSize: 12 }} />
+                                <YAxis tick={{ fontSize: 12 }} allowDecimals={false} />
                                 <Tooltip />
                                 <Legend />
-                                {topProductKeys.map((key, i) => (
+                                {topProductKeys.map((key, index) => (
                                     <Line
                                         key={key}
                                         type="monotone"
                                         dataKey={key}
-                                        stroke={LINE_COLORS[i % LINE_COLORS.length]}
+                                        stroke={lineColors[index % lineColors.length]}
                                         strokeWidth={2}
                                         dot={{ r: 4 }}
                                         activeDot={{ r: 6 }}
@@ -114,7 +143,6 @@ export default function Reports() {
                     )}
                 </div>
 
-                {/* Top 10 Consumed — Bar Chart */}
                 <div className="card">
                     <h3 className="font-bold text-gray-800 mb-4">Top 10 Most Sold Products (Last 30 Days)</h3>
                     {topProducts.length === 0 ? (
@@ -132,7 +160,6 @@ export default function Reports() {
                     )}
                 </div>
 
-                {/* All Purchase Orders History */}
                 <div className="card p-0 overflow-hidden">
                     <div className="px-4 py-3 border-b border-gray-100">
                         <h3 className="font-bold text-gray-800">Purchase Order History</h3>
@@ -153,22 +180,22 @@ export default function Reports() {
                             <tbody>
                                 {allOrders.length === 0 ? (
                                     <tr><td colSpan={7} className="text-center py-8 text-gray-400 text-sm">No orders yet.</td></tr>
-                                ) : allOrders.map((o) => (
-                                    <tr key={o.id} className="table-row">
-                                        <td className="table-cell font-mono text-xs text-gray-500">{o.order_number}</td>
-                                        <td className="table-cell text-sm font-medium text-gray-700">{o.products?.name}</td>
-                                        <td className="table-cell font-bold">{o.quantity_ordered}</td>
+                                ) : allOrders.map((order) => (
+                                    <tr key={order.id} className="table-row">
+                                        <td className="table-cell font-mono text-xs text-gray-500">{order.order_number}</td>
+                                        <td className="table-cell text-sm font-medium text-gray-700">{order.products?.name}</td>
+                                        <td className="table-cell font-bold">{order.quantity_ordered}</td>
                                         <td className="table-cell text-sm">
-                                            {o.triggered_by === 'ai_prediction' ? '🤖 AI' : '✋ Manual'}
+                                            {order.triggered_by === 'ai_prediction' ? 'Forecast' : 'Manual'}
                                         </td>
                                         <td className="table-cell">
-                                            <span className={STATUS_COLOR[o.status] || 'badge-pending'}>{o.status}</span>
+                                            <span className={statusColor[order.status] || 'badge-pending'}>{order.status}</span>
                                         </td>
                                         <td className="table-cell text-sm">
-                                            {o.predicted_days_until_stockout ?? '—'}
+                                            {order.predicted_days_until_stockout ?? '-'}
                                         </td>
                                         <td className="table-cell text-xs text-gray-500">
-                                            {o.created_at ? format(new Date(o.created_at), 'MMM d, yyyy') : '—'}
+                                            {order.created_at ? format(new Date(order.created_at), 'MMM d, yyyy') : '-'}
                                         </td>
                                     </tr>
                                 ))}
@@ -179,4 +206,8 @@ export default function Reports() {
             </div>
         </Layout>
     );
+}
+
+function shortLabel(name) {
+    return name.split(' ').slice(0, 2).join(' ');
 }

@@ -1,0 +1,142 @@
+[
+  {
+    "sku": "SCR-WD-300",
+    "selected_model": "sarima",
+    "mae": 3.58389604756161,
+    "rmse": 4.1125279311396215,
+    "mape": 27.734504279183238
+  },
+  {
+    "sku": "SCR-DW-150",
+    "selected_model": "sarima",
+    "mae": 3.105621659719404,
+    "rmse": 3.6008218827442717,
+    "mape": 81.52070021878008
+  },
+  {
+    "sku": "BLT-HX-M10",
+    "selected_model": "holt_winters",
+    "mae": 3.988210355739181,
+    "rmse": 4.825605470484042,
+    "mape": 26.792830964870696
+  },
+  {
+    "sku": "DRL-CL-18V",
+    "selected_model": "seasonal_naive",
+    "mae": 0.42857142857142855,
+    "rmse": 0.6546536707079771,
+    "mape": 35.714285714285715
+  },
+  {
+    "sku": "SAW-CR-725",
+    "selected_model": "seasonal_naive",
+    "mae": 0.21428571428571427,
+    "rmse": 0.4629100498862757,
+    "mape": 21.428571428571427
+  },
+  {
+    "sku": "GRN-AG-45",
+    "selected_model": "sarima",
+    "mae": 0.5600034797308012,
+    "rmse": 0.6459689996843048,
+    "mape": 50.312564463109865
+  },
+  {
+    "sku": "PIP-PV-210",
+    "selected_model": "holt_winters",
+    "mae": 1.184326252037123,
+    "rmse": 1.63483781714485,
+    "mape": 48.640941868325136
+  },
+  {
+    "sku": "PIP-CP-075",
+    "selected_model": "sarima",
+    "mae": 2.0335171131890744,
+    "rmse": 2.3034270487139445,
+    "mape": 110.27440180443395
+  },
+  {
+    "sku": "VLV-BL-050",
+    "selected_model": "sarima",
+    "mae": 1.8719772480901002,
+    "rmse": 2.303014944246393,
+    "mape": 90.63206073457441
+  },
+  {
+    "sku": "PNT-LT-W1G",
+    "selected_model": "sarima",
+    "mae": 2.546382145126962,
+    "rmse": 3.2139446101106888,
+    "mape": 39.80223500361406
+  },
+  {
+    "sku": "PNT-EX-G1G",
+    "selected_model": "sarima",
+    "mae": 1.8301668022102844,
+    "rmse": 2.335019868351263,
+    "mape": 78.12014378174655
+  },
+  {
+    "sku": "PNT-RK-9IN",
+    "selected_model": "holt_winters",
+    "mae": 1.7517245476559455,
+    "rmse": 2.251759249465847,
+    "mape": 77.49312763720744
+  },
+  {
+    "sku": "LMB-2x4-8",
+    "selected_model": "seasonal_naive",
+    "mae": 1.7142857142857142,
+    "rmse": 2.32992949004287,
+    "mape": 93.63095238095237
+  },
+  {
+    "sku": "PLY-4x8-75",
+    "selected_model": "sarima",
+    "mae": 1.5940894316206287,
+    "rmse": 1.9281954920772313,
+    "mape": 52.9804640691652
+  },
+  {
+    "sku": "OSB-4x8-716",
+    "selected_model": "sarima",
+    "mae": 2.116857686873077,
+    "rmse": 2.531406592452573,
+    "mape": 81.30617890488044
+  },
+  {
+    "sku": "CMT-MX-60",
+    "selected_model": "holt_winters",
+    "mae": 1.5700261339186004,
+    "rmse": 2.194848846103792,
+    "mape": 64.10954879257146
+  },
+  {
+    "sku": "BLK-CN-888",
+    "selected_model": "holt_winters",
+    "mae": 1.804331504602606,
+    "rmse": 2.4806833624233695,
+    "mape": 97.27619905031112
+  },
+  {
+    "sku": "WIR-EL-12",
+    "selected_model": "sarima",
+    "mae": 1.800011126507442,
+    "rmse": 2.23708063974683,
+    "mape": 98.10696708900623
+  },
+  {
+    "sku": "BRK-CB-20A",
+    "selected_model": "holt_winters",
+    "mae": 1.2123688703762696,
+    "rmse": 1.3946207723926651,
+    "mape": 66.08108403842215
+  },
+  {
+    "sku": "SAF-HM-STD",
+    "selected_model": "holt_winters",
+    "mae": 1.2332974825968397,
+    "rmse": 1.4685305831755209,
+    "mape": 99.92924369666709
+  }
+]
