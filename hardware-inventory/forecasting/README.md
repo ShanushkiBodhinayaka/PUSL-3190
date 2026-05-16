@@ -16,6 +16,7 @@ Because SARIMA-style models are per-series models, a public retail dataset canno
 - `generate_synthetic_history.py`: creates realistic daily sales history for the SKUs in `seed-data.sql`
 - `train_forecasts.py`: trains real forecasting models and exports forecast recommendations
 - `download_online_retail.py`: downloads the UCI Online Retail dataset
+- `import_online_retail_seed.py`: converts an Online Retail style Kaggle/UCI dataset into demo seed SQL for this app
 
 ## Install
 
@@ -32,6 +33,38 @@ python forecasting/generate_synthetic_history.py
 Output:
 
 - `forecasting/generated/synthetic_sales_history.csv`
+
+## Seed demo data from a real retail dataset
+
+If you want more realistic demo data than `seed-data.sql`, you can use the common Online Retail dataset
+that is available on UCI and mirrors many Kaggle versions of the same data.
+
+1. Download the dataset:
+
+```bash
+python forecasting/download_online_retail.py
+```
+
+2. Convert it into app-friendly SQL:
+
+```bash
+python forecasting/import_online_retail_seed.py
+```
+
+Output:
+
+- `forecasting/generated/kaggle_demo_seed.sql`
+
+3. Run that generated SQL in the Supabase SQL Editor after `supabase-schema.sql`.
+
+Notes:
+
+- The importer upserts products and appends sale stock movements.
+- It keeps only the top revenue products so the demo stays readable.
+- It is designed for Online Retail style columns such as `InvoiceNo`, `StockCode`, `Description`,
+  `Quantity`, `InvoiceDate`, and `UnitPrice`.
+- Many Kaggle copies of the Online Retail dataset work without modification. If your file uses the same
+  columns, pass it with `--input path/to/file.csv`.
 
 ## Train and export forecasts
 

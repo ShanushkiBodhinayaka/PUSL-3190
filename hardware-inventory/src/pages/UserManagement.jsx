@@ -31,6 +31,21 @@ export default function UserManagement() {
 
     useEffect(() => {
         load();
+
+        const channel = supabase
+            .channel('profiles-changes')
+            .on(
+                'postgres_changes',
+                { event: '*', schema: 'public', table: 'profiles' },
+                () => {
+                    load();
+                }
+            )
+            .subscribe();
+
+        return () => {
+            supabase.removeChannel(channel);
+        };
     }, [load]);
 
     async function handleRoleChange(userId, newRole) {
@@ -67,6 +82,7 @@ export default function UserManagement() {
             setInviteFullName('');
             setInviteEmail('');
             setInviteRole('staff');
+            await load();
         }
 
         setInviting(false);
@@ -117,13 +133,6 @@ export default function UserManagement() {
                             {inviting ? 'Sending...' : 'Send Invitation'}
                         </button>
                     </form>
-                    <div className="mt-4 p-3 bg-amber-50 rounded-lg border border-amber-100">
-                        <p className="text-xs text-amber-700">
-                            <strong>Setup:</strong> Deploy the `invite-user` Edge Function and configure
-                            `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY`, and `SUPABASE_ANON_KEY` in Supabase
-                            before using this panel.
-                        </p>
-                    </div>
                 </div>
 
                 <div className="lg:col-span-2 card p-0 overflow-hidden">
