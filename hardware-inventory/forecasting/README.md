@@ -34,6 +34,25 @@ Output:
 
 - `forecasting/generated/synthetic_sales_history.csv`
 
+## Export actual sales history from Supabase
+
+For real forecasting, export actual sale movements from the live database instead of using synthetic data:
+
+```bash
+set SUPABASE_URL=your_supabase_project_url
+set SUPABASE_ANON_KEY=your_supabase_anon_key
+python forecasting/export_sales_history_from_supabase.py
+```
+
+If available, use `SUPABASE_SERVICE_ROLE_KEY` instead of the anon key for a trusted local/admin export.
+
+Output:
+
+- `forecasting/generated/actual_sales_history.csv`
+
+The exporter reads `stock_movements` where `movement_type = sale`, joins each movement to its product SKU,
+aggregates units sold per day per SKU, and writes the same CSV shape consumed by `train_forecasts.py`.
+
 ## Seed demo data from a real retail dataset
 
 If you want more realistic demo data than `seed-data.sql`, you can use the common Online Retail dataset
@@ -72,6 +91,12 @@ Notes:
 python forecasting/train_forecasts.py
 ```
 
+To train from actual database sales:
+
+```bash
+python forecasting/train_forecasts.py --history-csv forecasting/generated/actual_sales_history.csv
+```
+
 Outputs:
 
 - `forecasting/generated/demand_forecasts.csv`
@@ -87,6 +112,23 @@ Run the generated SQL file in your Supabase SQL editor:
 ```
 
 After that, the app will use those forecast rows when creating forecast-driven purchase orders.
+
+## In-app generated forecasts
+
+The Inventory page can also generate forecasts from current Supabase sales data through the
+`generate-forecasts` Edge Function.
+
+Deploy it with:
+
+```bash
+supabase functions deploy generate-forecasts
+```
+
+The function reads actual `stock_movements` sale rows, generates one forecast row per active product,
+and writes the results to `demand_forecasts` using today's `forecast_date`.
+
+The app then reuses those stored rows until the day changes or an inventory user clicks Generate Forecast again.
+This avoids running the model every time the forecast page is opened.
 
 ## Notes on model choice
 

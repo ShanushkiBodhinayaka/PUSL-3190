@@ -146,6 +146,25 @@ alter table products
 create unique index if not exists products_sku_lower_unique
   on products (lower(sku));
 
+do $$
+begin
+  if not exists (select 1 from pg_constraint where conname = 'products_current_stock_nonnegative') then
+    alter table products
+      add constraint products_current_stock_nonnegative check (current_stock >= 0) not valid;
+  end if;
+
+  if not exists (select 1 from pg_constraint where conname = 'products_reorder_point_nonnegative') then
+    alter table products
+      add constraint products_reorder_point_nonnegative check (reorder_point >= 0) not valid;
+  end if;
+
+  if not exists (select 1 from pg_constraint where conname = 'products_reorder_quantity_positive') then
+    alter table products
+      add constraint products_reorder_quantity_positive check (reorder_quantity > 0) not valid;
+  end if;
+end;
+$$;
+
 -- ============================================================
 -- 4. STOCK MOVEMENTS TABLE
 -- ============================================================
@@ -158,6 +177,15 @@ create table if not exists stock_movements (
   created_by uuid references profiles(id),
   created_at timestamp with time zone default now()
 );
+
+do $$
+begin
+  if not exists (select 1 from pg_constraint where conname = 'stock_movements_quantity_positive') then
+    alter table stock_movements
+      add constraint stock_movements_quantity_positive check (quantity > 0) not valid;
+  end if;
+end;
+$$;
 
 -- ============================================================
 -- 5. SALES TABLE
@@ -244,6 +272,15 @@ create unique index if not exists purchase_orders_one_pending_per_product
   on purchase_orders (product_id)
   where status = 'pending';
 
+do $$
+begin
+  if not exists (select 1 from pg_constraint where conname = 'purchase_orders_quantity_positive') then
+    alter table purchase_orders
+      add constraint purchase_orders_quantity_positive check (quantity_ordered > 0) not valid;
+  end if;
+end;
+$$;
+
 -- ============================================================
 -- 9. DEMAND FORECASTS
 -- ============================================================
@@ -271,6 +308,25 @@ create table if not exists demand_forecasts (
 create index if not exists demand_forecasts_product_generated_idx
   on demand_forecasts (product_id, generated_at desc);
 
+with ranked_forecasts as (
+  select
+    id,
+    row_number() over (
+      partition by product_id, forecast_date
+      order by generated_at desc, id desc
+    ) as row_number
+  from demand_forecasts
+)
+delete from demand_forecasts
+where id in (
+  select id
+  from ranked_forecasts
+  where row_number > 1
+);
+
+create unique index if not exists demand_forecasts_one_per_product_date
+  on demand_forecasts (product_id, forecast_date);
+
 -- ============================================================
 -- 8. HELPER FUNCTIONS
 -- ============================================================
@@ -285,6 +341,48 @@ as $$
   from public.profiles
   where id = auth.uid()
 $$;
+
+create or replace function public.prevent_last_admin_removal()
+returns trigger
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  v_admin_count integer;
+begin
+  if tg_op = 'UPDATE' and old.role = 'admin' and new.role <> 'admin' then
+    select count(*) into v_admin_count
+    from public.profiles
+    where role = 'admin';
+
+    if v_admin_count <= 1 then
+      raise exception 'You cannot remove the last admin account.';
+    end if;
+  end if;
+
+  if tg_op = 'DELETE' and old.role = 'admin' then
+    select count(*) into v_admin_count
+    from public.profiles
+    where role = 'admin';
+
+    if v_admin_count <= 1 then
+      raise exception 'You cannot delete the last admin account.';
+    end if;
+  end if;
+
+  if tg_op = 'DELETE' then
+    return old;
+  end if;
+
+  return new;
+end;
+$$;
+
+drop trigger if exists prevent_last_admin_removal_trigger on public.profiles;
+create trigger prevent_last_admin_removal_trigger
+  before update of role or delete on public.profiles
+  for each row execute function public.prevent_last_admin_removal();
 
 drop function if exists public.complete_sale(text, numeric, text, text, jsonb);
 

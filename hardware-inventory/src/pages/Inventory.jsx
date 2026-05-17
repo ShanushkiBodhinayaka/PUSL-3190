@@ -16,7 +16,6 @@ import toast from 'react-hot-toast';
 import Layout from '../components/Layout';
 import { useAuth } from '../contexts/AuthContext';
 import {
-    analyzeStock,
     buildForecastPrediction,
     getStockStatus,
 } from '../lib/predictions';
@@ -68,24 +67,40 @@ function formatDateTime(value) {
     });
 }
 
+function todayIsoDate() {
+    return new Date().toISOString().slice(0, 10);
+}
+
+async function getFunctionErrorMessage(error) {
+    const fallback = error?.message || 'Request failed';
+
+    try {
+        const context = error?.context;
+        if (context && typeof context.json === 'function') {
+            const body = await context.json();
+            return body?.error || body?.message || fallback;
+        }
+    } catch (_parseError) {
+        return fallback;
+    }
+
+    return fallback;
+}
+
 function riskRank(riskLevel) {
     if (riskLevel === 'critical') return 0;
     if (riskLevel === 'at_risk') return 1;
     return 2;
 }
 
-function addForecastFreshness(prediction, forecast, latestSaleAt) {
-    if (!forecast || !latestSaleAt) return prediction;
-
-    const saleDate = new Date(latestSaleAt);
-    const generatedDate = new Date(forecast.generated_at);
-    if (Number.isNaN(saleDate.getTime()) || Number.isNaN(generatedDate.getTime())) return prediction;
-
-    return {
-        ...prediction,
-        forecastGeneratedAt: forecast.generated_at,
-        isStale: saleDate > generatedDate,
-    };
+function predictionSourceLabel(prediction) {
+    if (prediction.source === 'forecast') {
+        return `Stored model${prediction.modelName ? `: ${prediction.modelName}` : ''}`;
+    }
+    if (prediction.source === 'model') {
+        return `Live model: ${prediction.modelName || 'sales history'}`;
+    }
+    return 'Baseline rule';
 }
 
 export default function Inventory() {
@@ -145,8 +160,7 @@ export default function Inventory() {
 
     const load = useCallback(async () => {
         setLoading(true);
-        const thirtyDaysAgo = new Date();
-        thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+        const forecastDate = todayIsoDate();
 
         let productQuery = supabase
             .from('products')
@@ -176,18 +190,16 @@ export default function Inventory() {
         const [
             { data: productRows, error: productError, count: productCount },
             { data: forecastRows },
-            { data: movementRows },
             { data: pendingOrders },
             { data: categoryRows },
             { data: productIndexRows },
         ] = await Promise.all([
             productQuery,
-            supabase.from('demand_forecasts').select('*').order('generated_at', { ascending: false }),
             supabase
-                .from('stock_movements')
+                .from('demand_forecasts')
                 .select('*')
-                .eq('movement_type', 'sale')
-                .gte('created_at', thirtyDaysAgo.toISOString()),
+                .eq('forecast_date', forecastDate)
+                .order('generated_at', { ascending: false }),
             supabase
                 .from('purchase_orders')
                 .select('product_id')
@@ -211,24 +223,13 @@ export default function Inventory() {
                     latestForecasts.set(forecast.product_id, forecast);
                 }
             }
-            const latestSaleByProduct = new Map();
-            for (const movement of movementRows || []) {
-                const currentLatest = latestSaleByProduct.get(movement.product_id);
-                if (!currentLatest || new Date(movement.created_at) > new Date(currentLatest)) {
-                    latestSaleByProduct.set(movement.product_id, movement.created_at);
-                }
-            }
 
             const nextSignals = new Map();
             for (const product of productRows || []) {
                 const forecast = latestForecasts.get(product.id);
-                const prediction = forecast
-                    ? addForecastFreshness(buildForecastPrediction(product, forecast), forecast, latestSaleByProduct.get(product.id))
-                    : analyzeStock(product, movementRows || []);
-                nextSignals.set(
-                    product.id,
-                    prediction
-                );
+                if (forecast) {
+                    nextSignals.set(product.id, buildForecastPrediction(product, forecast));
+                }
             }
 
             setProducts(productRows || []);
@@ -701,18 +702,23 @@ export default function Inventory() {
     async function handleRunForecast() {
         setRunningForecast(true);
         try {
-            const [{ data: productsData }, { data: forecastRows }] = await Promise.all([
-                supabase.from('products').select('*'),
-                supabase.from('demand_forecasts').select('*').order('generated_at', { ascending: false }),
-            ]);
-            const thirtyDaysAgo = new Date();
-            thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+            const { data: result, error: generateError } = await supabase.functions.invoke('generate-forecasts');
+            if (generateError) {
+                throw new Error(await getFunctionErrorMessage(generateError));
+            }
 
-            const { data: movementData } = await supabase
-                .from('stock_movements')
-                .select('*')
-                .eq('movement_type', 'sale')
-                .gte('created_at', thirtyDaysAgo.toISOString());
+            const forecastDate = result?.forecast_date || todayIsoDate();
+            const [{ data: productsData, error: productError }, { data: forecastRows, error: forecastError }] = await Promise.all([
+                supabase.from('products').select('*').eq('active', true).order('name'),
+                supabase
+                    .from('demand_forecasts')
+                    .select('*')
+                    .eq('forecast_date', forecastDate)
+                    .order('generated_at', { ascending: false }),
+            ]);
+
+            if (productError) throw productError;
+            if (forecastError) throw forecastError;
 
             const latestForecasts = new Map();
             for (const forecast of forecastRows || []) {
@@ -720,28 +726,32 @@ export default function Inventory() {
                     latestForecasts.set(forecast.product_id, forecast);
                 }
             }
-            const latestSaleByProduct = new Map();
-            for (const movement of movementData || []) {
-                const currentLatest = latestSaleByProduct.get(movement.product_id);
-                if (!currentLatest || new Date(movement.created_at) > new Date(currentLatest)) {
-                    latestSaleByProduct.set(movement.product_id, movement.created_at);
-                }
-            }
 
             const results = (productsData || [])
                 .map((product) => {
                     const forecast = latestForecasts.get(product.id);
-                    return {
-                        product,
-                        prediction: forecast
-                            ? addForecastFreshness(buildForecastPrediction(product, forecast), forecast, latestSaleByProduct.get(product.id))
-                            : analyzeStock(product, movementData || []),
-                    };
+                    return forecast
+                        ? { product, prediction: buildForecastPrediction(product, forecast) }
+                        : null;
                 })
-                .filter((result) => result.prediction.shouldReorder);
+                .filter(Boolean)
+                .sort((a, b) => {
+                const riskDiff = riskRank(a.prediction.riskLevel) - riskRank(b.prediction.riskLevel);
+                if (riskDiff !== 0) return riskDiff;
+                const aDays = a.prediction.daysUntilStockout ?? Number.MAX_SAFE_INTEGER;
+                const bDays = b.prediction.daysUntilStockout ?? Number.MAX_SAFE_INTEGER;
+                return aDays - bDays;
+            });
+
+            const nextSignals = new Map(forecastSignals);
+            for (const result of results) {
+                nextSignals.set(result.product.id, result.prediction);
+            }
 
             setForecastResults(results);
+            setForecastSignals(nextSignals);
             setShowForecastModal(true);
+            toast.success(`Generated ${result?.generated || results.length} forecasts for ${forecastDate}`);
         } catch (error) {
             toast.error(`Forecast analysis failed: ${error.message}`);
         }
@@ -791,7 +801,7 @@ export default function Inventory() {
                 product_id: row.product.id,
                 quantity,
                 predicted_days_until_stockout: row.prediction.daysUntilStockout,
-                notes: `Forecast request. Risk: ${row.prediction.riskLevel}. Expected 7-day sales: ${row.prediction.expectedSalesNext7Days} units. Avg daily demand: ${row.prediction.avgDailyConsumption} units/day.`,
+                notes: `${predictionSourceLabel(row.prediction)} forecast request. Risk: ${row.prediction.riskLevel}. Expected 7-day sales: ${row.prediction.expectedSalesNext7Days} units. Avg daily demand: ${row.prediction.avgDailyConsumption} units/day.`,
             })),
         });
 
@@ -975,7 +985,7 @@ export default function Inventory() {
                                                     {row.prediction.riskLevel === 'critical' ? 'Critical' : 'At Risk'}
                                                 </span>
                                                 <p className="text-[11px] text-gray-400 mt-1">
-                                                    {row.prediction.source === 'forecast' ? `Model${row.prediction.modelName ? `: ${row.prediction.modelName}` : ''}` : 'Sales history'}
+                                                    {predictionSourceLabel(row.prediction)}
                                                     {row.prediction.isStale ? ' | Stale' : ''}
                                                 </p>
                                             </td>
@@ -1711,10 +1721,10 @@ export default function Inventory() {
                             Forecast Analysis Results
                         </Dialog.Title>
                         <p className="text-sm text-gray-500 mb-4">
-                            {forecastResults?.length || 0} products flagged for reorder.
+                            {forecastResults?.length || 0} active products forecasted from current sales history.
                         </p>
                         {forecastResults?.length === 0 ? (
-                            <p className="text-green-600 font-medium py-4">All stock levels are healthy. No orders needed.</p>
+                            <p className="text-green-600 font-medium py-4">No active products found to forecast.</p>
                         ) : (
                             <div className="space-y-2 mb-4">
                                 {forecastResults?.map(({ product, prediction }) => (
@@ -1726,19 +1736,27 @@ export default function Inventory() {
                                             </p>
                                         </div>
                                         <div className="text-right">
-                                            <span className={prediction.riskLevel === 'critical' ? 'badge-critical' : 'badge-low'}>
-                                                {prediction.riskLevel === 'critical' ? 'Critical' : 'At Risk'}
+                                            <span className={
+                                                prediction.riskLevel === 'critical'
+                                                    ? 'badge-critical'
+                                                    : prediction.riskLevel === 'at_risk'
+                                                        ? 'badge-low'
+                                                        : 'badge-ok'
+                                            }>
+                                                {prediction.riskLevel === 'critical'
+                                                    ? 'Critical'
+                                                    : prediction.riskLevel === 'at_risk'
+                                                        ? 'At Risk'
+                                                        : 'OK'}
                                             </span>
                                             <p className="text-[11px] text-gray-400 mt-1">
-                                                {prediction.source === 'forecast'
-                                                    ? `Model: ${prediction.modelName}`
-                                                    : 'Fallback: baseline rule'}
+                                                {predictionSourceLabel(prediction)}
                                                 {prediction.isStale ? ' | Stale' : ''}
                                             </p>
                                             <p className="text-xs text-gray-500 mt-1">
                                                 {prediction.daysUntilStockout != null
                                                     ? `~${prediction.daysUntilStockout} days left`
-                                                    : 'Below safety stock'}
+                                                    : 'No stockout predicted'}
                                             </p>
                                         </div>
                                     </div>

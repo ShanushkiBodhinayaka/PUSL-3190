@@ -1,9 +1,10 @@
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { Dialog } from '@headlessui/react';
-import { PlusIcon, ShoppingCartIcon } from '@heroicons/react/24/outline';
+import { MagnifyingGlassIcon, PlusIcon, ShoppingCartIcon } from '@heroicons/react/24/outline';
 import { format } from 'date-fns';
 import toast from 'react-hot-toast';
 import Layout from '../components/Layout';
+import ProductSearchInput from '../components/ProductSearchInput';
 import { useAuth } from '../contexts/AuthContext';
 import { canCreatePurchaseOrders } from '../lib/roles';
 import { supabase } from '../lib/supabase';
@@ -28,6 +29,7 @@ export default function PurchaseOrders() {
     const [status, setStatus] = useState('all');
     const [loading, setLoading] = useState(true);
     const [showCreate, setShowCreate] = useState(false);
+    const [orderSearch, setOrderSearch] = useState('');
     const [saving, setSaving] = useState(false);
     const [receivingOrderId, setReceivingOrderId] = useState(null);
     const [newOrder, setNewOrder] = useState({ product_id: '', quantity_ordered: '', notes: '' });
@@ -42,7 +44,8 @@ export default function PurchaseOrders() {
 
         const { data: productRows } = await supabase
             .from('products')
-            .select('id, name, sku, reorder_quantity')
+            .select('id, name, sku, category, current_stock, reorder_point, reorder_quantity, supplier_name')
+            .eq('active', true)
             .order('name');
         setProducts(productRows || []);
         setLoading(false);
@@ -52,15 +55,40 @@ export default function PurchaseOrders() {
         load();
     }, [load]);
 
-    const filtered = status === 'all' ? orders : orders.filter((order) => order.status === status);
-    const pendingProductIds = new Set(
-        orders.filter((order) => order.status === 'pending').map((order) => order.product_id)
+    const filtered = orders.filter((order) => {
+        const matchesStatus = status === 'all' || order.status === status;
+        const query = orderSearch.trim().toLowerCase();
+        if (!query) return matchesStatus;
+
+        const haystack = [
+            order.order_number,
+            order.products?.name,
+            order.products?.sku,
+            order.triggered_by,
+            order.status,
+            order.notes,
+        ]
+            .filter(Boolean)
+            .join(' ')
+            .toLowerCase();
+        return matchesStatus && haystack.includes(query);
+    });
+    const pendingProductIds = useMemo(
+        () => new Set(orders.filter((order) => order.status === 'pending').map((order) => order.product_id)),
+        [orders]
     );
+    const selectedProduct = products.find((product) => product.id === newOrder.product_id);
 
     async function handleCreate(event) {
         event.preventDefault();
         if (!newOrder.product_id || !newOrder.quantity_ordered) {
             toast.error('Select a product and quantity');
+            return;
+        }
+
+        const qty = parseInt(newOrder.quantity_ordered, 10);
+        if (!qty || qty <= 0) {
+            toast.error('Enter a valid quantity');
             return;
         }
 
@@ -73,14 +101,17 @@ export default function PurchaseOrders() {
         const { error } = await supabase.from('purchase_orders').insert([{
             order_number: `PO-MAN-${Date.now()}`,
             product_id: newOrder.product_id,
-            quantity_ordered: parseInt(newOrder.quantity_ordered, 10),
+            quantity_ordered: qty,
             triggered_by: 'manual',
             status: 'pending',
             notes: newOrder.notes || null,
         }]);
 
         if (error) {
-            toast.error(`Failed to create order: ${error.message}`);
+            const duplicatePending = error.code === '23505' || error.message?.includes('purchase_orders_one_pending_per_product');
+            toast.error(duplicatePending
+                ? 'This product already has a pending purchase order'
+                : `Failed to create order: ${error.message}`);
         } else {
             toast.success('Purchase order created');
             setShowCreate(false);
@@ -126,6 +157,15 @@ export default function PurchaseOrders() {
                             {statusOption}
                         </button>
                     ))}
+                </div>
+                <div className="relative flex-1 min-w-56 max-w-sm">
+                    <MagnifyingGlassIcon className="w-4 h-4 text-gray-400 absolute left-3 top-2.5" />
+                    <input
+                        className="input-field pl-9"
+                        placeholder="Search order, SKU, product..."
+                        value={orderSearch}
+                        onChange={(event) => setOrderSearch(event.target.value)}
+                    />
                 </div>
                 {canCreate && (
                     <button onClick={() => setShowCreate(true)} className="btn-primary flex items-center gap-2">
@@ -226,26 +266,39 @@ export default function PurchaseOrders() {
                         <form onSubmit={handleCreate} className="space-y-4">
                             <div>
                                 <label className="block text-xs font-medium text-gray-600 mb-1">Product</label>
-                                <select
-                                    className="input-field"
-                                    required
-                                    value={newOrder.product_id}
-                                    onChange={(event) => {
-                                        const product = products.find((row) => row.id === event.target.value);
-                                        setNewOrder({
-                                            ...newOrder,
-                                            product_id: event.target.value,
-                                            quantity_ordered: product?.reorder_quantity || '',
-                                        });
+                                <ProductSearchInput
+                                    id="purchase-order-product"
+                                    products={products}
+                                    selectedProductId={newOrder.product_id}
+                                    disabledProductIds={pendingProductIds}
+                                    getDisabledReason={() => 'Pending order already exists'}
+                                    onBlockedSelect={(product) => {
+                                        toast.error(`${product.name} already has a pending purchase order`);
+                                        setNewOrder((current) => ({ ...current, product_id: '', quantity_ordered: '' }));
                                     }}
-                                >
-                                    <option value="">Select product...</option>
-                                    {products.map((product) => (
-                                        <option key={product.id} value={product.id} disabled={pendingProductIds.has(product.id)}>
-                                            {product.name} ({product.sku}){pendingProductIds.has(product.id) ? ' - pending order' : ''}
-                                        </option>
-                                    ))}
-                                </select>
+                                    onSelectProduct={(productId, product) => {
+                                        setNewOrder((current) => ({
+                                            ...current,
+                                            product_id: productId,
+                                            quantity_ordered: product?.reorder_quantity || '',
+                                        }));
+                                    }}
+                                    required
+                                    renderSelectedProduct={(product) => (
+                                        <div className="mt-2 rounded-lg border border-gray-100 bg-gray-50 px-3 py-2 text-xs text-gray-500">
+                                            <div className="flex items-center justify-between gap-3">
+                                                <span className="font-medium text-gray-700">{product.name}</span>
+                                                <span className="font-mono text-gray-500">{product.sku}</span>
+                                            </div>
+                                            <div className="mt-1 grid grid-cols-2 gap-2">
+                                                <span>Stock: <strong className="text-gray-700">{product.current_stock}</strong></span>
+                                                <span>Safety: <strong className="text-gray-700">{product.reorder_point}</strong></span>
+                                                <span>Reorder: <strong className="text-gray-700">{product.reorder_quantity}</strong></span>
+                                                <span className="truncate">{product.supplier_name || 'No supplier'}</span>
+                                            </div>
+                                        </div>
+                                    )}
+                                />
                             </div>
                             <div>
                                 <label className="block text-xs font-medium text-gray-600 mb-1">Quantity</label>
@@ -257,6 +310,11 @@ export default function PurchaseOrders() {
                                     value={newOrder.quantity_ordered}
                                     onChange={(event) => setNewOrder({ ...newOrder, quantity_ordered: event.target.value })}
                                 />
+                                {selectedProduct && Number(newOrder.quantity_ordered || 0) < selectedProduct.reorder_quantity && (
+                                    <p className="mt-1 text-xs text-yellow-700">
+                                        Suggested reorder quantity is {selectedProduct.reorder_quantity}.
+                                    </p>
+                                )}
                             </div>
                             <div>
                                 <label className="block text-xs font-medium text-gray-600 mb-1">Notes</label>

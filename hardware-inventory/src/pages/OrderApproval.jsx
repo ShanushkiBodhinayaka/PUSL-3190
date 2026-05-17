@@ -40,17 +40,23 @@ export default function OrderApproval() {
 
     async function handleApprove(order) {
         setSaving(true);
-        const { error } = await supabase
+        const { data, error } = await supabase
             .from('purchase_orders')
             .update({
                 status: 'approved',
                 approved_by: user?.id,
                 approved_at: new Date().toISOString(),
             })
-            .eq('id', order.id);
+            .eq('id', order.id)
+            .eq('status', 'pending')
+            .select('id')
+            .maybeSingle();
 
         if (error) {
             toast.error(`Failed to approve: ${error.message}`);
+        } else if (!data) {
+            toast.error(`Order ${order.order_number} was already handled by another user`);
+            await load();
         } else {
             toast.success(`Order ${order.order_number} approved`);
             await load();
@@ -61,7 +67,7 @@ export default function OrderApproval() {
     async function handleReject() {
         if (!rejectTarget) return;
         setSaving(true);
-        const { error } = await supabase
+        const { data, error } = await supabase
             .from('purchase_orders')
             .update({
                 status: 'rejected',
@@ -69,10 +75,18 @@ export default function OrderApproval() {
                 approved_by: user?.id,
                 approved_at: new Date().toISOString(),
             })
-            .eq('id', rejectTarget.id);
+            .eq('id', rejectTarget.id)
+            .eq('status', 'pending')
+            .select('id')
+            .maybeSingle();
 
         if (error) {
             toast.error(`Failed to reject: ${error.message}`);
+        } else if (!data) {
+            toast.error(`Order ${rejectTarget.order_number} was already handled by another user`);
+            setRejectTarget(null);
+            setRejectNote('');
+            await load();
         } else {
             toast.success(`Order ${rejectTarget.order_number} rejected`);
             setRejectTarget(null);

@@ -1,4 +1,9 @@
-import { analyzeStock, buildForecastPrediction, getStockStatus } from './predictions';
+import {
+    analyzeStock,
+    buildForecastPrediction,
+    buildOnDemandForecastPrediction,
+    getStockStatus,
+} from './predictions';
 
 describe('prediction helpers', () => {
     const product = {
@@ -59,6 +64,34 @@ describe('prediction helpers', () => {
             riskLevel: 'at_risk',
             avgDailyConsumption: 2.5,
             expectedSalesNext7Days: 17.5,
+        });
+    });
+
+    it('builds live model forecasts from actual sale movements', () => {
+        const start = new Date('2026-01-01T00:00:00.000Z');
+        const movements = Array.from({ length: 70 }, (_, index) => ({
+            product_id: 'product-1',
+            movement_type: 'sale',
+            quantity: index % 7 >= 5 ? 4 : 2,
+            created_at: new Date(start.getTime() + index * 86400000).toISOString(),
+        }));
+
+        const prediction = buildOnDemandForecastPrediction(product, movements);
+
+        expect(prediction).toMatchObject({
+            source: 'model',
+            shouldReorder: true,
+        });
+        expect(['average_demand', 'seasonal_naive', 'holt_winters']).toContain(prediction.modelName);
+        expect(prediction.avgDailyConsumption).toBeGreaterThan(0);
+        expect(prediction.expectedSalesNext7Days).toBeGreaterThan(0);
+        expect(prediction.validationMae).not.toBeNull();
+    });
+
+    it('marks products with too little sales history as model forecasts with insufficient history', () => {
+        expect(buildOnDemandForecastPrediction(product, [])).toMatchObject({
+            source: 'model',
+            modelName: 'insufficient_sales_history',
         });
     });
 });

@@ -1,18 +1,37 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import { format } from 'date-fns';
-import { PaperAirplaneIcon, UsersIcon } from '@heroicons/react/24/outline';
+import { PaperAirplaneIcon, TrashIcon, UsersIcon } from '@heroicons/react/24/outline';
 import toast from 'react-hot-toast';
 import Layout from '../components/Layout';
+import { useAuth } from '../contexts/AuthContext';
 import { supabase } from '../lib/supabase';
 import { ROLE_COLORS, ROLE_LABELS, ROLES } from '../lib/roles';
 
+async function getFunctionErrorMessage(error) {
+    const fallback = error?.message || 'Failed to send invitation';
+
+    try {
+        const context = error?.context;
+        if (context && typeof context.json === 'function') {
+            const body = await context.json();
+            return body?.error || body?.message || fallback;
+        }
+    } catch (_parseError) {
+        return fallback;
+    }
+
+    return fallback;
+}
+
 export default function UserManagement() {
+    const { user: currentUser } = useAuth();
     const [users, setUsers] = useState([]);
     const [loading, setLoading] = useState(true);
     const [inviteFullName, setInviteFullName] = useState('');
     const [inviteEmail, setInviteEmail] = useState('');
     const [inviteRole, setInviteRole] = useState('staff');
     const [inviting, setInviting] = useState(false);
+    const [deletingUserId, setDeletingUserId] = useState(null);
 
     const load = useCallback(async () => {
         setLoading(true);
@@ -76,7 +95,7 @@ export default function UserManagement() {
         });
 
         if (error) {
-            toast.error(error.message || 'Failed to send invitation');
+            toast.error(await getFunctionErrorMessage(error));
         } else {
             toast.success(`Invitation sent to ${inviteEmail}`);
             setInviteFullName('');
@@ -86,6 +105,31 @@ export default function UserManagement() {
         }
 
         setInviting(false);
+    }
+
+    async function handleDeleteUser(targetUser) {
+        if (targetUser.id === currentUser?.id) {
+            toast.error('You cannot delete your own account while signed in');
+            return;
+        }
+
+        const confirmed = window.confirm(
+            `Delete ${targetUser.full_name || 'this user'}? This removes their login account and profile.`
+        );
+        if (!confirmed) return;
+
+        setDeletingUserId(targetUser.id);
+        const { error } = await supabase.functions.invoke('delete-user', {
+            body: { userId: targetUser.id },
+        });
+
+        if (error) {
+            toast.error(await getFunctionErrorMessage(error));
+        } else {
+            toast.success(`${targetUser.full_name || 'User'} deleted`);
+            await load();
+        }
+        setDeletingUserId(null);
     }
 
     return (
@@ -149,13 +193,14 @@ export default function UserManagement() {
                                     <th className="table-header">Current Role</th>
                                     <th className="table-header">Joined</th>
                                     <th className="table-header">Change Role</th>
+                                    <th className="table-header">Delete</th>
                                 </tr>
                             </thead>
                             <tbody>
                                 {loading ? (
-                                    <tr><td colSpan={5} className="text-center py-10"><div className="spinner mx-auto" /></td></tr>
+                                    <tr><td colSpan={6} className="text-center py-10"><div className="spinner mx-auto" /></td></tr>
                                 ) : users.length === 0 ? (
-                                    <tr><td colSpan={5} className="text-center py-10 text-gray-400 text-sm">No users found.</td></tr>
+                                    <tr><td colSpan={6} className="text-center py-10 text-gray-400 text-sm">No users found.</td></tr>
                                 ) : users.map((user) => (
                                     <tr key={user.id} className="table-row">
                                         <td className="table-cell">
@@ -185,6 +230,21 @@ export default function UserManagement() {
                                                     <option key={role} value={role}>{ROLE_LABELS[role]}</option>
                                                 ))}
                                             </select>
+                                        </td>
+                                        <td className="table-cell">
+                                            <button
+                                                type="button"
+                                                title={user.id === currentUser?.id ? 'You cannot delete your own account' : 'Delete user'}
+                                                disabled={deletingUserId === user.id || user.id === currentUser?.id}
+                                                onClick={() => handleDeleteUser(user)}
+                                                className="inline-flex items-center justify-center w-8 h-8 rounded-lg text-red-600 hover:bg-red-50 disabled:text-gray-300 disabled:hover:bg-transparent transition-colors"
+                                            >
+                                                {deletingUserId === user.id ? (
+                                                    <span className="spinner w-4 h-4" />
+                                                ) : (
+                                                    <TrashIcon className="w-4 h-4" />
+                                                )}
+                                            </button>
                                         </td>
                                     </tr>
                                 ))}

@@ -1,8 +1,9 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import { format } from 'date-fns';
-import { FunnelIcon, PlusIcon } from '@heroicons/react/24/outline';
+import { FunnelIcon, MagnifyingGlassIcon, PlusIcon } from '@heroicons/react/24/outline';
 import toast from 'react-hot-toast';
 import Layout from '../components/Layout';
+import ProductSearchInput from '../components/ProductSearchInput';
 import { useAuth } from '../contexts/AuthContext';
 import { supabase } from '../lib/supabase';
 
@@ -33,7 +34,9 @@ export default function StockMovements() {
     const [products, setProducts] = useState([]);
     const [loading, setLoading] = useState(true);
     const [filter, setFilter] = useState('all');
+    const [movementLimit, setMovementLimit] = useState(50);
     const [saving, setSaving] = useState(false);
+    const [movementSearch, setMovementSearch] = useState('');
     const [form, setForm] = useState({
         product_id: '',
         movement_type: 'sale',
@@ -44,17 +47,21 @@ export default function StockMovements() {
     const load = useCallback(async () => {
         setLoading(true);
         const [{ data: productRows }, { data: movementRows }] = await Promise.all([
-            supabase.from('products').select('id, name, sku').order('name'),
+            supabase
+                .from('products')
+                .select('id, name, sku, category, current_stock, reorder_point')
+                .eq('active', true)
+                .order('name'),
             supabase
                 .from('stock_movements')
-                .select('*, products(name, sku)')
+                .select('*, products(name, sku), profiles(full_name, role)')
                 .order('created_at', { ascending: false })
-                .limit(50),
+                .limit(movementLimit),
         ]);
         setProducts(productRows || []);
         setMovements(movementRows || []);
         setLoading(false);
-    }, []);
+    }, [movementLimit]);
 
     useEffect(() => {
         load();
@@ -66,6 +73,8 @@ export default function StockMovements() {
         }
     }, [allowedTypes, form.movement_type]);
 
+    const selectedProduct = products.find((product) => product.id === form.product_id);
+
     async function handleSubmit(event) {
         event.preventDefault();
         if (!form.product_id) {
@@ -76,6 +85,11 @@ export default function StockMovements() {
         const qty = parseInt(form.quantity, 10);
         if (!qty || qty <= 0) {
             toast.error('Enter a valid quantity');
+            return;
+        }
+
+        if (['sale', 'damage'].includes(form.movement_type) && selectedProduct?.current_stock < qty) {
+            toast.error(`Only ${selectedProduct.current_stock} units are available for ${selectedProduct.name}`);
             return;
         }
 
@@ -97,7 +111,23 @@ export default function StockMovements() {
         setSaving(false);
     }
 
-    const filtered = filter === 'all' ? movements : movements.filter((movement) => movement.movement_type === filter);
+    const filtered = movements.filter((movement) => {
+        const matchesType = filter === 'all' || movement.movement_type === filter;
+        const query = movementSearch.trim().toLowerCase();
+        if (!query) return matchesType;
+
+        const haystack = [
+            movement.products?.name,
+            movement.products?.sku,
+            movement.notes,
+            movement.profiles?.full_name,
+            movement.movement_type,
+        ]
+            .filter(Boolean)
+            .join(' ')
+            .toLowerCase();
+        return matchesType && haystack.includes(query);
+    });
 
     return (
         <Layout title="Stock Movements">
@@ -110,17 +140,26 @@ export default function StockMovements() {
                     <form onSubmit={handleSubmit} className="space-y-4">
                         <div>
                             <label className="block text-xs font-medium text-gray-600 mb-1">Product</label>
-                            <select
-                                className="input-field"
-                                value={form.product_id}
-                                onChange={(event) => setForm({ ...form, product_id: event.target.value })}
+                            <ProductSearchInput
+                                id="stock-movement-product"
+                                products={products}
+                                selectedProductId={form.product_id}
+                                onSelectProduct={(productId) => setForm((current) => ({ ...current, product_id: productId }))}
                                 required
-                            >
-                                <option value="">Select a product...</option>
-                                {products.map((product) => (
-                                    <option key={product.id} value={product.id}>{product.name} ({product.sku})</option>
-                                ))}
-                            </select>
+                                renderSelectedProduct={(product) => (
+                                    <div className="mt-2 rounded-lg border border-gray-100 bg-gray-50 px-3 py-2 text-xs text-gray-500">
+                                        <div className="flex items-center justify-between gap-3">
+                                            <span className="font-medium text-gray-700">{product.name}</span>
+                                            <span className="font-mono text-gray-500">{product.sku}</span>
+                                        </div>
+                                        <div className="mt-1 grid grid-cols-3 gap-2">
+                                            <span>Stock: <strong className="text-gray-700">{product.current_stock}</strong></span>
+                                            <span>Safety: <strong className="text-gray-700">{product.reorder_point}</strong></span>
+                                            <span className="truncate">{product.category || 'Uncategorized'}</span>
+                                        </div>
+                                    </div>
+                                )}
+                            />
                         </div>
                         <div>
                             <label className="block text-xs font-medium text-gray-600 mb-1">Movement Type</label>
@@ -165,12 +204,21 @@ export default function StockMovements() {
                 </div>
 
                 <div className="lg:col-span-2 card p-0 overflow-hidden">
-                    <div className="flex items-center justify-between px-4 py-3 border-b border-gray-100">
+                    <div className="flex items-center justify-between px-4 py-3 border-b border-gray-100 gap-3 flex-wrap">
                         <h3 className="font-bold text-gray-800 flex items-center gap-2 px-2">
                             <FunnelIcon className="w-4 h-4 text-gray-400" />
                             Recent Movements
                         </h3>
-                        <div className="flex gap-1">
+                        <div className="relative flex-1 min-w-48 max-w-xs">
+                            <MagnifyingGlassIcon className="w-4 h-4 text-gray-400 absolute left-3 top-2.5" />
+                            <input
+                                className="input-field pl-9 py-1.5"
+                                placeholder="Search SKU, product, user..."
+                                value={movementSearch}
+                                onChange={(event) => setMovementSearch(event.target.value)}
+                            />
+                        </div>
+                        <div className="flex gap-1 flex-wrap">
                             {['all', 'sale', 'restock', 'adjustment', 'damage'].map((movementType) => (
                                 <button
                                     key={movementType}
@@ -194,14 +242,15 @@ export default function StockMovements() {
                                     <th className="table-header">Type</th>
                                     <th className="table-header">Quantity</th>
                                     <th className="table-header">Notes</th>
+                                    <th className="table-header">By</th>
                                     <th className="table-header">Date</th>
                                 </tr>
                             </thead>
                             <tbody>
                                 {loading ? (
-                                    <tr><td colSpan={5} className="text-center py-10"><div className="spinner mx-auto" /></td></tr>
+                                    <tr><td colSpan={6} className="text-center py-10"><div className="spinner mx-auto" /></td></tr>
                                 ) : filtered.length === 0 ? (
-                                    <tr><td colSpan={5} className="text-center py-10 text-gray-400 text-sm">No movements recorded yet.</td></tr>
+                                    <tr><td colSpan={6} className="text-center py-10 text-gray-400 text-sm">No movements found.</td></tr>
                                 ) : filtered.map((movement) => (
                                     <tr key={movement.id} className="table-row">
                                         <td className="table-cell">
@@ -226,6 +275,12 @@ export default function StockMovements() {
                                             </span>
                                         </td>
                                         <td className="table-cell text-xs text-gray-500 max-w-xs truncate">{movement.notes || '-'}</td>
+                                        <td className="table-cell">
+                                            <p className="text-xs font-medium text-gray-600">{movement.profiles?.full_name || 'System'}</p>
+                                            {movement.profiles?.role && (
+                                                <p className="text-xs text-gray-400 capitalize">{movement.profiles.role.replaceAll('_', ' ')}</p>
+                                            )}
+                                        </td>
                                         <td className="table-cell text-xs text-gray-500">
                                             {format(new Date(movement.created_at), 'MMM d, h:mm a')}
                                         </td>
@@ -234,6 +289,22 @@ export default function StockMovements() {
                             </tbody>
                         </table>
                     </div>
+                    {!loading && (
+                        <div className="px-4 py-3 border-t border-gray-50 flex items-center justify-between gap-3">
+                            <p className="text-xs text-gray-400">
+                                Showing {filtered.length} of {movements.length} loaded movements
+                            </p>
+                            {movements.length >= movementLimit && (
+                                <button
+                                    type="button"
+                                    onClick={() => setMovementLimit((current) => current + 50)}
+                                    className="btn-secondary py-1.5 px-3 text-xs"
+                                >
+                                    Load more
+                                </button>
+                            )}
+                        </div>
+                    )}
                 </div>
             </div>
         </Layout>
