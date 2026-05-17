@@ -11,6 +11,8 @@ export function analyzeStock(product, movements) {
 
     const totalSold = salesMovements.reduce((sum, movement) => sum + movement.quantity, 0);
     const avgDailyConsumption = totalSold / 30;
+    const roundedAvgDailyConsumption = Math.round(avgDailyConsumption * 100) / 100;
+    const expectedSalesNext7Days = Math.round(avgDailyConsumption * 7 * 10) / 10;
 
     let daysUntilStockout = null;
     let riskLevel = 'ok';
@@ -35,7 +37,8 @@ export function analyzeStock(product, movements) {
     return {
         source: 'heuristic',
         daysUntilStockout,
-        avgDailyConsumption: Math.round(avgDailyConsumption * 100) / 100,
+        avgDailyConsumption: roundedAvgDailyConsumption,
+        expectedSalesNext7Days,
         riskLevel,
         shouldReorder,
         suggestedQuantity: product.reorder_quantity || 50,
@@ -50,6 +53,8 @@ export function buildForecastPrediction(product, forecast) {
 
     const effectiveDemand = Math.max(predictedDailyDemand, predictedDemand / Math.max(Number(forecast.horizon_days || 1), 1));
     const daysUntilStockout = effectiveDemand > 0 ? Math.floor(product.current_stock / effectiveDemand) : null;
+    const roundedEffectiveDemand = Math.round(effectiveDemand * 100) / 100;
+    const expectedSalesNext7Days = Math.round(effectiveDemand * 7 * 10) / 10;
 
     let riskLevel = 'ok';
     if (forecast.reorder_signal || product.current_stock <= safetyStock) {
@@ -62,7 +67,8 @@ export function buildForecastPrediction(product, forecast) {
         source: 'forecast',
         modelName: forecast.model_name,
         daysUntilStockout,
-        avgDailyConsumption: Math.round(predictedDailyDemand * 100) / 100,
+        avgDailyConsumption: roundedEffectiveDemand,
+        expectedSalesNext7Days,
         riskLevel,
         shouldReorder: Boolean(forecast.reorder_signal) || product.current_stock <= safetyStock,
         suggestedQuantity: Math.max(1, Math.round(recommendedQuantity || product.reorder_quantity || 1)),
@@ -91,26 +97,20 @@ async function fetchLatestForecasts() {
  * Create a purchase order for the supplied product and reorder decision.
  */
 export async function generatePurchaseOrder(product, prediction) {
-    const orderNumber = `PO-${Date.now()}-${product.sku}`;
     const notePrefix = prediction.source === 'forecast'
         ? `Model ${prediction.modelName || 'forecast'} generated`
         : 'Heuristic engine generated';
 
-    const { data, error } = await supabase
-        .from('purchase_orders')
-        .insert([
+    const { data, error } = await supabase.rpc('place_forecast_purchase_orders', {
+        p_items: [
             {
-                order_number: orderNumber,
                 product_id: product.id,
-                quantity_ordered: prediction.suggestedQuantity,
-                status: 'pending',
-                triggered_by: 'ai_prediction',
+                quantity: prediction.suggestedQuantity,
                 predicted_days_until_stockout: prediction.daysUntilStockout,
-                notes: `${notePrefix}. Risk: ${prediction.riskLevel}. Avg daily demand: ${prediction.avgDailyConsumption} units/day.`,
+                notes: `${notePrefix}. Risk: ${prediction.riskLevel}. Expected 7-day sales: ${prediction.expectedSalesNext7Days} units. Avg daily demand: ${prediction.avgDailyConsumption} units/day.`,
             },
-        ])
-        .select()
-        .single();
+        ],
+    });
 
     if (error) throw error;
     return data;

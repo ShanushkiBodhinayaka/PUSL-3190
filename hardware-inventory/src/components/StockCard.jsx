@@ -44,7 +44,7 @@ export default function StockCard({ product }) {
             <div className="mb-3">
                 <div className="flex justify-between text-xs text-gray-500 mb-1">
                     <span>Stock: <strong className="text-gray-700">{product.current_stock}</strong></span>
-                    <span>Reorder @ {product.reorder_point}</span>
+                    <span>Safety stock {product.reorder_point}</span>
                 </div>
                 <div className="h-2 bg-gray-100 rounded-full overflow-hidden">
                     <div

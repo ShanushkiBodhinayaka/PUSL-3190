@@ -9,7 +9,6 @@ const ROLES = new Set([
     'admin',
     'inventory_manager',
     'sales_operator',
-    'procurement_manager',
     'approval_manager',
     'staff',
 ]);

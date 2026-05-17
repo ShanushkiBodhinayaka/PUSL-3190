@@ -1,16 +1,20 @@
 # HardwareHub
 
-HardwareHub is a role-based hardware inventory management app built with React and Supabase. It supports stock tracking, point-of-sale checkout, purchase order workflows, reporting, and user administration.
+HardwareHub is a role-based hardware inventory management app built with React and Supabase. It supports stock tracking, cashier sales imports, purchase order workflows, reporting, and user administration.
 
 ## Features
 
 - Authentication with role-aware routing
 - Inventory catalog with low-stock indicators
-- POS checkout with transactional stock updates
+- Admin category management for product setup
+- Admin product master CSV import for initial setup and SKU updates
+- Import history for sales and product setup batches
+- Cashier CSV sales imports with transactional stock updates
 - Manual stock movement recording
 - Forecast-based reorder suggestions powered by trained time-series models when available
-- Purchase order creation and approval workflow
+- Purchase order creation, approval, and receiving workflow
 - Reporting for sales trends and purchase order history
+- Notification badges for low stock, approvals, and receivable orders
 - Admin user management with invite support through a Supabase Edge Function
 
 ## Tech Stack
@@ -35,6 +39,7 @@ supabase/
 forecasting/         Synthetic history generation and model training pipeline
 supabase-schema.sql  Database schema, RLS policies, and RPC functions
 seed-data.sql        Sample products and movements
+demo-large-data.sql  Large generated demo dataset
 ```
 
 ## Setup
@@ -51,6 +56,7 @@ npm install
 
 - `supabase-schema.sql`
 - `seed-data.sql` (optional sample data)
+- `demo-large-data.sql` (optional large demo dataset)
 
 4. Deploy the invite function:
 
@@ -92,6 +98,21 @@ python forecasting/train_forecasts.py
 
 The app will then use rows from `demand_forecasts` when generating forecast-based purchase orders.
 
+## Large Demo Dataset
+
+For a fuller demo with thousands of rows, run `demo-large-data.sql` in the Supabase SQL Editor after `supabase-schema.sql`.
+
+It creates:
+
+- 1,200 demo products
+- 8,630 demo sales receipts, including a recent window from four days ago through the day after tomorrow
+- 8,630 sale items
+- 10,230 stock movements
+- 1,200 demand forecasts
+- 220 purchase orders
+
+The script only resets rows tagged with `DEMO-LARGE` or SKU prefix `DEMO-`, so it can be rerun without clearing your normal seed data.
+
 ## Environment Variables
 
 Frontend:
@@ -109,17 +130,20 @@ Edge Function:
 
 - `admin`: full access, user management, approvals
 - `inventory_manager`: inventory maintenance and stock control
-- `sales_operator`: POS and sales-driven stock movement
-- `procurement_manager`: create purchase orders and view reports
+- `sales_operator`: cashier sales imports and sales-driven stock movement
 - `approval_manager`: approve or reject purchase orders
 - `staff`: view inventory and record basic stock movements
 
 ## Database Notes
 
-The schema includes two important RPC functions used by the frontend:
+The schema includes important RPC functions used by the frontend:
 
-- `complete_sale(...)`: creates the sale, sale items, stock movements, and stock deductions in one transaction
+- `import_sales_batch(...)`: imports cashier CSV sales, creates sale rows, records stock movements, and deducts stock in one transaction
 - `record_stock_movement(...)`: records a movement and updates stock in one transaction
+- `update_product_master(...)`: updates product master fields without changing stock history
+- `archive_product(...)`: hides/restores products while preserving reporting history
+- `delete_product(...)`: deletes products only when they do not have sales history
+- `receive_purchase_order(...)`: marks approved/ordered purchase orders as received, increases stock, and records a restock movement
 - `demand_forecasts`: stores trained model outputs that the frontend prefers over heuristic predictions
 
 This prevents partial writes from leaving the inventory in an inconsistent state.

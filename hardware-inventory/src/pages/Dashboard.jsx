@@ -2,8 +2,11 @@ import React, { useEffect, useState } from 'react';
 import { format } from 'date-fns';
 import {
     ArrowsRightLeftIcon,
+    CheckCircleIcon,
     ClockIcon,
+    CpuChipIcon,
     CubeIcon,
+    DocumentArrowUpIcon,
     ExclamationTriangleIcon,
     ShoppingCartIcon,
 } from '@heroicons/react/24/outline';
@@ -31,6 +34,7 @@ export default function Dashboard() {
     const [stats, setStats] = useState({});
     const [movements, setMovements] = useState([]);
     const [lowStock, setLowStock] = useState([]);
+    const [lowByCategory, setLowByCategory] = useState([]);
     const [pendingOrders, setPendingOrders] = useState([]);
     const [loading, setLoading] = useState(true);
 
@@ -41,8 +45,12 @@ export default function Dashboard() {
                 { data: products },
                 { data: recentMovements },
                 { data: orders },
+                { count: receivableOrders },
+                { count: salesToday },
+                { count: importsToday },
+                { data: forecastRows },
             ] = await Promise.all([
-                supabase.from('products').select('*'),
+                supabase.from('products').select('*').eq('active', true),
                 supabase
                     .from('stock_movements')
                     .select('*, products(name)')
@@ -52,6 +60,24 @@ export default function Dashboard() {
                     .from('purchase_orders')
                     .select('*, products(name)')
                     .eq('status', 'pending'),
+                supabase
+                    .from('purchase_orders')
+                    .select('id', { count: 'exact', head: true })
+                    .in('status', ['approved', 'ordered']),
+                supabase
+                    .from('sales')
+                    .select('id', { count: 'exact', head: true })
+                    .gte('created_at', new Date(new Date().setHours(0, 0, 0, 0)).toISOString()),
+                supabase
+                    .from('sales_import_batches')
+                    .select('id', { count: 'exact', head: true })
+                    .gte('imported_at', new Date(new Date().setHours(0, 0, 0, 0)).toISOString()),
+                supabase
+                    .from('demand_forecasts')
+                    .select('product_id,reorder_signal,generated_at')
+                    .eq('reorder_signal', true)
+                    .order('generated_at', { ascending: false })
+                    .limit(200),
             ]);
 
             const low = (products || []).filter(
@@ -62,8 +88,21 @@ export default function Dashboard() {
                 totalProducts: products?.length || 0,
                 lowStockCount: low.length,
                 pendingOrdersCount: orders?.length || 0,
+                receivableOrdersCount: receivableOrders || 0,
+                salesTodayCount: salesToday || 0,
+                importsTodayCount: importsToday || 0,
+                forecastCriticalCount: new Set((forecastRows || []).map((row) => row.product_id)).size,
             });
             setLowStock(low.slice(0, 5));
+            const categoryCounts = new Map();
+            for (const product of low) {
+                const key = product.category || 'Uncategorized';
+                categoryCounts.set(key, (categoryCounts.get(key) || 0) + 1);
+            }
+            setLowByCategory(Array.from(categoryCounts.entries())
+                .map(([name, count]) => ({ name, count }))
+                .sort((a, b) => b.count - a.count)
+                .slice(0, 6));
             setMovements(recentMovements || []);
             setPendingOrders(orders || []);
             setLoading(false);
@@ -107,8 +146,8 @@ export default function Dashboard() {
                 </p>
             </div>
 
-            {(role === 'admin' || role === 'inventory_manager' || role === 'procurement_manager' || role === 'approval_manager') && (
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 mb-6">
+            {(role === 'admin' || role === 'inventory_manager' || role === 'approval_manager') && (
+                <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-6 gap-4 mb-6">
                     {role === 'admin' && (
                         <StatCard
                             icon={CubeIcon}
@@ -128,6 +167,24 @@ export default function Dashboard() {
                         label="Pending Orders"
                         value={stats.pendingOrdersCount}
                         color="bg-purple-50 text-purple-600"
+                    />
+                    <StatCard
+                        icon={CheckCircleIcon}
+                        label="Ready to Receive"
+                        value={stats.receivableOrdersCount}
+                        color="bg-green-50 text-green-600"
+                    />
+                    <StatCard
+                        icon={DocumentArrowUpIcon}
+                        label="Sales Today"
+                        value={stats.salesTodayCount}
+                        color="bg-blue-50 text-blue-600"
+                    />
+                    <StatCard
+                        icon={CpuChipIcon}
+                        label="Forecast Reorders"
+                        value={stats.forecastCriticalCount}
+                        color="bg-red-50 text-red-600"
                     />
                 </div>
             )}
@@ -258,12 +315,33 @@ export default function Dashboard() {
                     </div>
                 )}
 
+                {role !== 'sales_operator' && (
+                    <div className="card lg:col-span-2">
+                        <div className="flex items-center gap-2 mb-4">
+                            <CubeIcon className="w-5 h-5 text-blue-500" />
+                            <h3 className="font-semibold text-gray-800">Low Stock by Category</h3>
+                        </div>
+                        {lowByCategory.length === 0 ? (
+                            <p className="text-sm text-gray-400 py-4">No low stock categories.</p>
+                        ) : (
+                            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+                                {lowByCategory.map((row) => (
+                                    <div key={row.name} className="bg-gray-50 rounded-lg p-3 flex items-center justify-between">
+                                        <span className="text-sm font-medium text-gray-700">{row.name}</span>
+                                        <span className="badge-low">{row.count}</span>
+                                    </div>
+                                ))}
+                            </div>
+                        )}
+                    </div>
+                )}
+
                 {role === 'sales_operator' && (
                     <div className="card">
                         <h3 className="font-semibold text-gray-800 mb-2">Quick Tips</h3>
                         <ul className="text-sm text-gray-600 space-y-2 list-disc pl-4">
-                            <li>Use <strong>POS</strong> to scan or search items.</li>
-                            <li>Build a cart, choose payment details, then complete the sale.</li>
+                            <li>Use <strong>Sales Import</strong> to upload cashier exports.</li>
+                            <li>Review validation results before updating stock.</li>
                             <li>Check <strong>Purchase Orders</strong> to see restock status.</li>
                         </ul>
                     </div>

@@ -14,7 +14,6 @@
 --   ('REPLACE-WITH-ADMIN-UUID',       'John Admin',        'admin'),
 --   ('REPLACE-WITH-INVENTORY-UUID',   'Sarah Inventory',   'inventory_manager'),
 --   ('REPLACE-WITH-SALES-UUID',       'Tom Sales',         'sales_operator'),
---   ('REPLACE-WITH-PROCUREMENT-UUID', 'Priya Procurement', 'procurement_manager'),
 --   ('REPLACE-WITH-APPROVER-UUID',    'Lisa Approver',     'approval_manager'),
 --   ('REPLACE-WITH-STAFF-UUID',       'Mike Staff',        'staff');
 

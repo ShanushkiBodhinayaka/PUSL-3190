@@ -21,6 +21,7 @@ const STATUS_BADGE = {
 export default function PurchaseOrders() {
     const { role } = useAuth();
     const canCreate = canCreatePurchaseOrders(role);
+    const canReceive = ['admin', 'inventory_manager'].includes(role);
 
     const [orders, setOrders] = useState([]);
     const [products, setProducts] = useState([]);
@@ -28,6 +29,7 @@ export default function PurchaseOrders() {
     const [loading, setLoading] = useState(true);
     const [showCreate, setShowCreate] = useState(false);
     const [saving, setSaving] = useState(false);
+    const [receivingOrderId, setReceivingOrderId] = useState(null);
     const [newOrder, setNewOrder] = useState({ product_id: '', quantity_ordered: '', notes: '' });
 
     const load = useCallback(async () => {
@@ -51,11 +53,19 @@ export default function PurchaseOrders() {
     }, [load]);
 
     const filtered = status === 'all' ? orders : orders.filter((order) => order.status === status);
+    const pendingProductIds = new Set(
+        orders.filter((order) => order.status === 'pending').map((order) => order.product_id)
+    );
 
     async function handleCreate(event) {
         event.preventDefault();
         if (!newOrder.product_id || !newOrder.quantity_ordered) {
             toast.error('Select a product and quantity');
+            return;
+        }
+
+        if (pendingProductIds.has(newOrder.product_id)) {
+            toast.error('This product already has a pending purchase order');
             return;
         }
 
@@ -78,6 +88,25 @@ export default function PurchaseOrders() {
             await load();
         }
         setSaving(false);
+    }
+
+    async function handleReceive(order) {
+        const confirmed = window.confirm(`Receive ${order.quantity_ordered} units for ${order.products?.name || 'this product'}?`);
+        if (!confirmed) return;
+
+        setReceivingOrderId(order.id);
+        const { data, error } = await supabase.rpc('receive_purchase_order', {
+            p_order_id: order.id,
+            p_notes: `Received from ${order.order_number}`,
+        });
+
+        if (error) {
+            toast.error(`Failed to receive order: ${error.message}`);
+        } else {
+            toast.success(`Received order. Current stock: ${data.current_stock}`);
+            await load();
+        }
+        setReceivingOrderId(null);
     }
 
     return (
@@ -118,14 +147,15 @@ export default function PurchaseOrders() {
                                 <th className="table-header">Days to Stockout</th>
                                 <th className="table-header">Status</th>
                                 <th className="table-header">Created</th>
+                                {canReceive && <th className="table-header">Actions</th>}
                             </tr>
                         </thead>
                         <tbody>
                             {loading ? (
-                                <tr><td colSpan={7} className="text-center py-10"><div className="spinner mx-auto" /></td></tr>
+                                <tr><td colSpan={canReceive ? 8 : 7} className="text-center py-10"><div className="spinner mx-auto" /></td></tr>
                             ) : filtered.length === 0 ? (
                                 <tr>
-                                    <td colSpan={7} className="text-center py-10 text-gray-400">
+                                    <td colSpan={canReceive ? 8 : 7} className="text-center py-10 text-gray-400">
                                         <ShoppingCartIcon className="w-10 h-10 mx-auto mb-2 opacity-30" />
                                         <p className="text-sm">No orders found.</p>
                                     </td>
@@ -160,6 +190,22 @@ export default function PurchaseOrders() {
                                     <td className="table-cell text-xs text-gray-500">
                                         {order.created_at ? format(new Date(order.created_at), 'MMM d, yyyy') : '-'}
                                     </td>
+                                    {canReceive && (
+                                        <td className="table-cell">
+                                            {['approved', 'ordered'].includes(order.status) ? (
+                                                <button
+                                                    type="button"
+                                                    disabled={receivingOrderId === order.id}
+                                                    onClick={() => handleReceive(order)}
+                                                    className="btn-secondary py-1.5 px-3 text-xs"
+                                                >
+                                                    {receivingOrderId === order.id ? 'Receiving...' : 'Receive'}
+                                                </button>
+                                            ) : (
+                                                <span className="text-xs text-gray-400">-</span>
+                                            )}
+                                        </td>
+                                    )}
                                 </tr>
                             ))}
                         </tbody>
@@ -195,7 +241,9 @@ export default function PurchaseOrders() {
                                 >
                                     <option value="">Select product...</option>
                                     {products.map((product) => (
-                                        <option key={product.id} value={product.id}>{product.name} ({product.sku})</option>
+                                        <option key={product.id} value={product.id} disabled={pendingProductIds.has(product.id)}>
+                                            {product.name} ({product.sku}){pendingProductIds.has(product.id) ? ' - pending order' : ''}
+                                        </option>
                                     ))}
                                 </select>
                             </div>

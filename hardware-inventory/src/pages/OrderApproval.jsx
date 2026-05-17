@@ -176,7 +176,7 @@ export default function OrderApproval() {
                                             <div>
                                                 <div className="flex justify-between text-xs text-gray-500 mb-1">
                                                     <span>Stock level</span>
-                                                    <span>Reorder at {order.products?.reorder_point}</span>
+                                                    <span>Safety stock {order.products?.reorder_point}</span>
                                                 </div>
                                                 <div className="h-2 bg-gray-100 rounded-full overflow-hidden">
                                                     <div className={`h-2 rounded-full ${bar.color}`} style={{ width: `${bar.pct}%` }} />

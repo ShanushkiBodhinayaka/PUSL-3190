@@ -1,9 +1,10 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { NavLink } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import {
     HomeIcon,
-    CalculatorIcon,
+    DocumentArrowUpIcon,
+    ClipboardDocumentListIcon,
     CubeIcon,
     ArrowsRightLeftIcon,
     ShoppingCartIcon,
@@ -13,10 +14,12 @@ import {
     WrenchScrewdriverIcon,
 } from '@heroicons/react/24/outline';
 import { ROUTE_ROLES } from '../lib/roles';
+import { supabase } from '../lib/supabase';
 
 const NAV_ITEMS = [
     { to: '/dashboard', label: 'Dashboard', icon: HomeIcon, roles: ROUTE_ROLES.dashboard },
-    { to: '/pos', label: 'POS', icon: CalculatorIcon, roles: ROUTE_ROLES.pos },
+    { to: '/sales-import', label: 'Sales Import', icon: DocumentArrowUpIcon, roles: ROUTE_ROLES.salesImport },
+    { to: '/import-history', label: 'Import History', icon: ClipboardDocumentListIcon, roles: ROUTE_ROLES.importHistory },
     { to: '/inventory', label: 'Inventory', icon: CubeIcon, roles: ROUTE_ROLES.inventory },
     { to: '/stock-movements', label: 'Stock Movements', icon: ArrowsRightLeftIcon, roles: ROUTE_ROLES.stockMovements },
     { to: '/purchase-orders', label: 'Purchase Orders', icon: ShoppingCartIcon, roles: ROUTE_ROLES.purchaseOrders },
@@ -27,6 +30,47 @@ const NAV_ITEMS = [
 
 export default function Sidebar() {
     const { role } = useAuth();
+    const [badges, setBadges] = useState({});
+
+    useEffect(() => {
+        let cancelled = false;
+
+        async function loadBadges() {
+            const nextBadges = {};
+
+            if (['admin', 'approval_manager'].includes(role)) {
+                const { count } = await supabase
+                    .from('purchase_orders')
+                    .select('id', { count: 'exact', head: true })
+                    .eq('status', 'pending');
+                if (count) nextBadges['/order-approval'] = count;
+            }
+
+            if (['admin', 'inventory_manager'].includes(role)) {
+                const { count } = await supabase
+                    .from('purchase_orders')
+                    .select('id', { count: 'exact', head: true })
+                    .in('status', ['approved', 'ordered']);
+                if (count) nextBadges['/purchase-orders'] = count;
+            }
+
+            if (['admin', 'inventory_manager', 'staff'].includes(role)) {
+                const { data } = await supabase
+                    .from('products')
+                    .select('id,current_stock,reorder_point')
+                    .eq('active', true);
+                const lowCount = (data || []).filter((product) => product.current_stock <= product.reorder_point).length;
+                if (lowCount) nextBadges['/inventory'] = lowCount;
+            }
+
+            if (!cancelled) setBadges(nextBadges);
+        }
+
+        if (role) loadBadges();
+        return () => {
+            cancelled = true;
+        };
+    }, [role]);
 
     const visibleItems = NAV_ITEMS.filter(
         (item) => item.roles.includes(role)
@@ -56,7 +100,12 @@ export default function Sidebar() {
                         }
                     >
                         <Icon className="w-5 h-5 flex-shrink-0" />
-                        {label}
+                        <span className="flex-1">{label}</span>
+                        {badges[to] ? (
+                            <span className="min-w-5 h-5 px-1.5 rounded-full bg-accent text-white text-[11px] font-bold flex items-center justify-center">
+                                {badges[to] > 99 ? '99+' : badges[to]}
+                            </span>
+                        ) : null}
                     </NavLink>
                 ))}
             </nav>

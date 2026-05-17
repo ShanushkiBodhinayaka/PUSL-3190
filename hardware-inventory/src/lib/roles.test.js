@@ -10,7 +10,7 @@ describe('role helpers', () => {
     it('allows the correct roles to create purchase orders', () => {
         expect(canCreatePurchaseOrders('admin')).toBe(true);
         expect(canCreatePurchaseOrders('inventory_manager')).toBe(true);
-        expect(canCreatePurchaseOrders('procurement_manager')).toBe(true);
+        expect(canCreatePurchaseOrders('approval_manager')).toBe(false);
         expect(canCreatePurchaseOrders('sales_operator')).toBe(false);
     });
 });

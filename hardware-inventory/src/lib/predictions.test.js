@@ -19,6 +19,7 @@ describe('prediction helpers', () => {
             riskLevel: 'critical',
             shouldReorder: true,
             suggestedQuantity: 40,
+            expectedSalesNext7Days: 14,
         });
     });
 
@@ -56,6 +57,8 @@ describe('prediction helpers', () => {
             shouldReorder: true,
             suggestedQuantity: 60,
             riskLevel: 'at_risk',
+            avgDailyConsumption: 2.5,
+            expectedSalesNext7Days: 17.5,
         });
     });
 });

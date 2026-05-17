@@ -5,12 +5,13 @@ import ProtectedRoute from './components/ProtectedRoute';
 import { AuthProvider } from './contexts/AuthContext';
 import { ROUTE_ROLES } from './lib/roles';
 import Dashboard from './pages/Dashboard';
+import ImportHistory from './pages/ImportHistory';
 import Inventory from './pages/Inventory';
 import Login from './pages/Login';
 import OrderApproval from './pages/OrderApproval';
-import POS from './pages/POS';
 import PurchaseOrders from './pages/PurchaseOrders';
 import Reports from './pages/Reports';
+import SalesImport from './pages/SalesImport';
 import StockMovements from './pages/StockMovements';
 import UserManagement from './pages/UserManagement';
 
@@ -57,10 +58,18 @@ export default function App() {
                         }
                     />
                     <Route
-                        path="/pos"
+                        path="/sales-import"
                         element={
-                            <ProtectedRoute allowedRoles={ROUTE_ROLES.pos}>
-                                <POS />
+                            <ProtectedRoute allowedRoles={ROUTE_ROLES.salesImport}>
+                                <SalesImport />
+                            </ProtectedRoute>
+                        }
+                    />
+                    <Route
+                        path="/import-history"
+                        element={
+                            <ProtectedRoute allowedRoles={ROUTE_ROLES.importHistory}>
+                                <ImportHistory />
                             </ProtectedRoute>
                         }
                     />

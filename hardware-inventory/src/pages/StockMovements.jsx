@@ -3,7 +3,15 @@ import { format } from 'date-fns';
 import { FunnelIcon, PlusIcon } from '@heroicons/react/24/outline';
 import toast from 'react-hot-toast';
 import Layout from '../components/Layout';
+import { useAuth } from '../contexts/AuthContext';
 import { supabase } from '../lib/supabase';
+
+const MOVEMENT_OPTIONS = [
+    { value: 'sale', label: 'Sale (reduces stock)' },
+    { value: 'restock', label: 'Restock (adds stock)' },
+    { value: 'adjustment', label: 'Adjustment' },
+    { value: 'damage', label: 'Damage (reduces stock)' },
+];
 
 const MOVEMENT_COLORS = {
     sale: 'bg-red-100 text-red-700',
@@ -12,7 +20,15 @@ const MOVEMENT_COLORS = {
     damage: 'bg-orange-100 text-orange-700',
 };
 
+function allowedMovementTypes(role) {
+    if (role === 'sales_operator') return ['sale'];
+    if (role === 'staff') return ['damage'];
+    return ['sale', 'restock', 'adjustment', 'damage'];
+}
+
 export default function StockMovements() {
+    const { role } = useAuth();
+    const allowedTypes = allowedMovementTypes(role);
     const [movements, setMovements] = useState([]);
     const [products, setProducts] = useState([]);
     const [loading, setLoading] = useState(true);
@@ -44,6 +60,12 @@ export default function StockMovements() {
         load();
     }, [load]);
 
+    useEffect(() => {
+        if (!allowedTypes.includes(form.movement_type)) {
+            setForm((current) => ({ ...current, movement_type: allowedTypes[0] || 'sale' }));
+        }
+    }, [allowedTypes, form.movement_type]);
+
     async function handleSubmit(event) {
         event.preventDefault();
         if (!form.product_id) {
@@ -69,7 +91,7 @@ export default function StockMovements() {
             toast.error(`Failed to record movement: ${error.message}`);
         } else {
             toast.success(`Movement recorded. Current stock: ${data.current_stock}`);
-            setForm({ product_id: '', movement_type: 'sale', quantity: '', notes: '' });
+            setForm({ product_id: '', movement_type: allowedTypes[0] || 'sale', quantity: '', notes: '' });
             await load();
         }
         setSaving(false);
@@ -107,10 +129,11 @@ export default function StockMovements() {
                                 value={form.movement_type}
                                 onChange={(event) => setForm({ ...form, movement_type: event.target.value })}
                             >
-                                <option value="sale">Sale (reduces stock)</option>
-                                <option value="restock">Restock (adds stock)</option>
-                                <option value="adjustment">Adjustment</option>
-                                <option value="damage">Damage (reduces stock)</option>
+                                {MOVEMENT_OPTIONS
+                                    .filter((option) => allowedTypes.includes(option.value))
+                                    .map((option) => (
+                                        <option key={option.value} value={option.value}>{option.label}</option>
+                                    ))}
                             </select>
                         </div>
                         <div>
