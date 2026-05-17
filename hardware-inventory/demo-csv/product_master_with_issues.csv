@@ -1,0 +1,8 @@
+sku,name,category,current_stock,reorder_point,reorder_quantity,unit_price,supplier_name
+DEMOCSV-BAD-001,Valid First Row,Fasteners,20,5,10,3.50,Demo Supplier
+DEMOCSV-BAD-001,Duplicate SKU Row,Fasteners,30,5,10,4.50,Demo Supplier
+,Missing SKU Row,Paint,10,3,12,12.00,Demo Supplier
+DEMOCSV-BAD-002,Invalid Stock,Plumbing,-4,6,20,8.00,Demo Supplier
+DEMOCSV-BAD-003,Invalid Safety Stock,Safety,15,-2,20,9.00,Demo Supplier
+DEMOCSV-BAD-004,Invalid Suggested Quantity,Electrical,18,5,0,10.00,Demo Supplier
+DEMOCSV-BAD-005,Invalid Unit Price,Lumber,22,8,15,-1.00,Demo Supplier

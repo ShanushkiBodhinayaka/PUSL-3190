@@ -1,0 +1,5 @@
+sku,name,category,current_stock,reorder_point,reorder_quantity,unit_price,supplier_name
+DEMOCSV-TOOL-005,Demo Compact Impact Driver,Power Tools,18,6,15,119.99,Demo Tool Supply
+DEMOCSV-LMB-006,Demo Treated Fence Board,Lumber,140,35,90,8.49,Demo Timber Supply
+DEMOCSV-ELEC-007,Demo Outdoor Extension Cord,Electrical,52,15,40,22.99,Demo Electric Supply
+SCR-WD-300,Existing SKU Should Skip,Fasteners,999,99,99,1.00,Skip Supplier
