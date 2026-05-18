@@ -259,7 +259,7 @@ create table if not exists purchase_orders (
   order_number text unique not null,
   product_id uuid references products(id) on delete cascade,
   quantity_ordered integer not null,
-  status text check (status in ('pending', 'approved', 'rejected', 'ordered', 'received')) default 'pending',
+  status text check (status in ('pending', 'approved', 'rejected', 'received')) default 'pending',
   triggered_by text check (triggered_by in ('ai_prediction', 'manual')),
   predicted_days_until_stockout integer,
   notes text,
@@ -274,6 +274,19 @@ create unique index if not exists purchase_orders_one_pending_per_product
 
 do $$
 begin
+  update public.purchase_orders
+  set status = 'approved'
+  where status = 'ordered';
+
+  if exists (select 1 from pg_constraint where conname = 'purchase_orders_status_check') then
+    alter table purchase_orders
+      drop constraint purchase_orders_status_check;
+  end if;
+
+  alter table purchase_orders
+    add constraint purchase_orders_status_check
+      check (status in ('pending', 'approved', 'rejected', 'received')) not valid;
+
   if not exists (select 1 from pg_constraint where conname = 'purchase_orders_quantity_positive') then
     alter table purchase_orders
       add constraint purchase_orders_quantity_positive check (quantity_ordered > 0) not valid;
@@ -1168,8 +1181,8 @@ begin
     raise exception 'Purchase order was not found.';
   end if;
 
-  if v_order.status not in ('approved', 'ordered') then
-    raise exception 'Only approved or ordered purchase orders can be received.';
+  if v_order.status <> 'approved' then
+    raise exception 'Only approved purchase orders can be received.';
   end if;
 
   select *

@@ -6,7 +6,6 @@ const STATUS_STYLES = {
     pending: 'badge-pending',
     approved: 'badge-approved',
     rejected: 'badge-rejected',
-    ordered: 'badge-ordered',
     received: 'badge-received',
 };
 

@@ -1,6 +1,6 @@
 sku,name,category,current_stock,reorder_point,reorder_quantity,unit_price,supplier_name
-DEMOCSV-SCR-001,Demo Zinc Screws 1in Box,Fasteners,160,30,120,5.99,Demo Fastener Supply
-DEMOCSV-PIPE-002,Demo Flexible PVC Hose 10ft,Plumbing,75,20,60,14.50,Demo Flow Supply
-DEMOCSV-PAINT-003,Demo Satin Paint 1gal Blue,Paint,44,12,36,31.25,Demo Color Supply
-DEMOCSV-SAFE-004,Demo Safety Glasses Clear,Safety,95,25,80,7.75,Demo Safety Supply
-SCR-WD-300,Wood Screws 3in Box Demo Update,Fasteners,455,55,220,9.25,FastenAll Supplies
+DEMOCSV-SCR-001,Demo Zinc Screws 1in Box,Fasteners,160,30,120,480.00,Demo Fastener Supply
+DEMOCSV-PIPE-002,Demo Flexible PVC Hose 10ft,Plumbing,75,20,60,1400.00,Demo Flow Supply
+DEMOCSV-PAINT-003,Demo Satin Paint 1gal Blue,Paint,44,12,36,3200.00,Demo Color Supply
+DEMOCSV-SAFE-004,Demo Safety Glasses Clear,Safety,95,25,80,680.00,Demo Safety Supply
+SCR-WD-300,Wood Screws 3in Box Demo Update,Fasteners,455,55,220,575.00,FastenAll Supplies

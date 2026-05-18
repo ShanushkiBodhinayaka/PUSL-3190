@@ -1,4 +1,4 @@
 sku,name,category,current_stock,reorder_point,reorder_quantity,unit_price,supplier_name
-DEMOCSV-SCR-001,Demo Zinc Screws 1in Box Updated,Fasteners,,35,140,6.25,Updated Fastener Supply
-DEMOCSV-PIPE-002,Demo Flexible PVC Hose 10ft Updated,Plumbing,,22,70,15.25,Updated Flow Supply
-SCR-WD-300,Wood Screws 3in Box Detail Update,Fasteners,,60,240,9.49,FastenAll Updated
+DEMOCSV-SCR-001,Demo Zinc Screws 1in Box Updated,Fasteners,,35,140,520.00,Updated Fastener Supply
+DEMOCSV-PIPE-002,Demo Flexible PVC Hose 10ft Updated,Plumbing,,22,70,1500.00,Updated Flow Supply
+SCR-WD-300,Wood Screws 3in Box Detail Update,Fasteners,,60,240,595.00,FastenAll Updated

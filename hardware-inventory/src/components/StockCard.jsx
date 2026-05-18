@@ -57,7 +57,7 @@ export default function StockCard({ product }) {
             <div className="flex justify-between text-xs text-gray-500">
                 <span>{product.category}</span>
                 <span className="font-medium text-gray-700">
-                    ${parseFloat(product.unit_price || 0).toFixed(2)}
+                    Rs {parseFloat(product.unit_price || 0).toFixed(2)}
                 </span>
             </div>
         </div>

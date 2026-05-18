@@ -24,11 +24,11 @@ export const ROLE_COLORS = {
 
 export const ROUTE_ROLES = {
     dashboard: ROLES,
-    salesImport: ['admin', 'inventory_manager', 'sales_operator'],
-    importHistory: ['admin', 'inventory_manager', 'sales_operator'],
+    salesImport: ['admin', 'sales_operator'],
+    importHistory: ['admin', 'sales_operator'],
     inventory: ['admin', 'inventory_manager', 'staff'],
-    stockMovements: ['admin', 'inventory_manager', 'sales_operator', 'staff'],
-    purchaseOrders: ROLES,
+    stockMovements: ['admin', 'inventory_manager', 'staff'],
+    purchaseOrders: ['admin', 'inventory_manager', 'approval_manager', 'staff'],
     orderApproval: ['admin', 'approval_manager'],
     reports: ['admin', 'inventory_manager', 'approval_manager'],
     users: ['admin'],

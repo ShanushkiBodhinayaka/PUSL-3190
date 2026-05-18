@@ -259,10 +259,8 @@ export default function Inventory() {
     const filterCategories = ['All', ...Array.from(new Set(categoryNames))];
     const productCategoryOptions = Array.from(new Set([...categoryNames, newProduct.category, editProduct.category].filter(Boolean)));
 
-    const filtered = products;
     const totalPages = Math.max(1, Math.ceil(catalogCount / pageSize));
     const safePage = Math.min(page, totalPages);
-    const paginatedProducts = filtered;
 
     const forecastOrderRows = useMemo(() => {
         return products
@@ -503,7 +501,7 @@ export default function Inventory() {
                 .limit(10),
             supabase
                 .from('sale_items')
-                .select('quantity, unit_price, line_total, sales(receipt_number, customer_name, created_at)')
+                .select('quantity, unit_price, line_total, sales(receipt_number, created_at)')
                 .eq('product_id', product.id)
                 .order('id', { ascending: false })
                 .limit(10),
@@ -1037,14 +1035,14 @@ export default function Inventory() {
                         <tbody>
                             {loading ? (
                                 <tr><td colSpan={canEdit ? 11 : 10} className="text-center py-12"><div className="spinner mx-auto" /></td></tr>
-                            ) : filtered.length === 0 ? (
+                            ) : products.length === 0 ? (
                                 <tr>
                                     <td colSpan={canEdit ? 11 : 10} className="text-center py-12 text-gray-400">
                                         <MagnifyingGlassIcon className="w-10 h-10 mx-auto mb-2 opacity-30" />
                                         <p className="text-sm">No products found.</p>
                                     </td>
                                 </tr>
-                            ) : paginatedProducts.map((product) => {
+                            ) : products.map((product) => {
                                 const stockStatus = getStockStatus(product);
                                 const prediction = forecastSignals.get(product.id);
                                 return (
@@ -1103,7 +1101,7 @@ export default function Inventory() {
                                             ) : '-'}
                                         </td>
                                         <td className="table-cell text-gray-600">{product.reorder_point}</td>
-                                        <td className="table-cell">${parseFloat(product.unit_price || 0).toFixed(2)}</td>
+                                        <td className="table-cell">Rs {parseFloat(product.unit_price || 0).toFixed(2)}</td>
                                         <td className="table-cell text-gray-600 text-xs">{product.supplier_name}</td>
                                         <td className="table-cell">{STATUS_BADGE[stockStatus]}</td>
                                         {canEdit && (
@@ -1470,7 +1468,7 @@ export default function Inventory() {
                             <div>
                                 <Dialog.Title className="text-lg font-bold text-gray-800">Import Product Master</Dialog.Title>
                                 <p className="text-sm text-gray-500 mt-1">
-                                    CSV columns: sku, name, category, current_stock, safety_stock, suggested_order_qty, unit_price, supplier_name.
+                                    CSV columns: sku, name, category, current_stock, reorder_point, reorder_quantity, unit_price, supplier_name.
                                 </p>
                             </div>
                             <span className="text-xs text-gray-400">{productImportFileName || 'No file selected'}</span>
@@ -1577,7 +1575,7 @@ export default function Inventory() {
                                                     <td className="table-cell font-semibold">{row.current_stock ?? '-'}</td>
                                                     <td className="table-cell">{row.reorder_point}</td>
                                                     <td className="table-cell">{row.reorder_quantity}</td>
-                                                    <td className="table-cell">${Number(row.unit_price || 0).toFixed(2)}</td>
+                                                    <td className="table-cell">Rs {Number(row.unit_price || 0).toFixed(2)}</td>
                                                     <td className="table-cell">
                                                         <span className={!row.valid ? 'badge-critical' : row.importable ? 'badge-ok' : 'badge-pending'}>{row.status}</span>
                                                     </td>
@@ -1626,7 +1624,7 @@ export default function Inventory() {
                                     </div>
                                     <div className="bg-gray-50 rounded-lg p-3">
                                         <p className="text-xs text-gray-400">Price</p>
-                                        <p className="text-xl font-bold text-gray-800">${Number(detailProduct?.unit_price || 0).toFixed(2)}</p>
+                                        <p className="text-xl font-bold text-gray-800">Rs {Number(detailProduct?.unit_price || 0).toFixed(2)}</p>
                                     </div>
                                     <div className="bg-gray-50 rounded-lg p-3">
                                         <p className="text-xs text-gray-400">Status</p>
@@ -1663,7 +1661,7 @@ export default function Inventory() {
                                                         <span className="text-sm font-semibold text-gray-800">{sale.sales?.receipt_number || '-'}</span>
                                                         <span className="text-sm font-bold text-gray-700">{sale.quantity} units</span>
                                                     </div>
-                                                    <p className="text-xs text-gray-400 mt-1">{formatDateTime(sale.sales?.created_at)} | ${Number(sale.line_total || 0).toFixed(2)}</p>
+                                                    <p className="text-xs text-gray-400 mt-1">{formatDateTime(sale.sales?.created_at)} | Rs {Number(sale.line_total || 0).toFixed(2)}</p>
                                                 </div>
                                             ))}
                                         </div>

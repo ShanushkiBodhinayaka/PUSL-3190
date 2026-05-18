@@ -9,13 +9,12 @@ import { useAuth } from '../contexts/AuthContext';
 import { canCreatePurchaseOrders } from '../lib/roles';
 import { supabase } from '../lib/supabase';
 
-const STATUSES = ['all', 'pending', 'approved', 'rejected', 'ordered', 'received'];
+const STATUSES = ['all', 'pending', 'approved', 'rejected', 'received'];
 
 const STATUS_BADGE = {
     pending: <span className="badge-pending">Pending</span>,
     approved: <span className="badge-approved">Approved</span>,
     rejected: <span className="badge-rejected">Rejected</span>,
-    ordered: <span className="badge-ordered">Ordered</span>,
     received: <span className="badge-received">Received</span>,
 };
 
@@ -232,7 +231,7 @@ export default function PurchaseOrders() {
                                     </td>
                                     {canReceive && (
                                         <td className="table-cell">
-                                            {['approved', 'ordered'].includes(order.status) ? (
+                                            {order.status === 'approved' ? (
                                                 <button
                                                     type="button"
                                                     disabled={receivingOrderId === order.id}

@@ -44,8 +44,6 @@ export default function OrderApproval() {
             .from('purchase_orders')
             .update({
                 status: 'approved',
-                approved_by: user?.id,
-                approved_at: new Date().toISOString(),
             })
             .eq('id', order.id)
             .eq('status', 'pending')
@@ -72,8 +70,6 @@ export default function OrderApproval() {
             .update({
                 status: 'rejected',
                 notes: rejectNote || 'Rejected by manager',
-                approved_by: user?.id,
-                approved_at: new Date().toISOString(),
             })
             .eq('id', rejectTarget.id)
             .eq('status', 'pending')
@@ -168,11 +164,13 @@ export default function OrderApproval() {
                                                 <p className="text-xs text-gray-400">Days to Stockout</p>
                                                 <p
                                                     className={`font-bold ${
-                                                        order.predicted_days_until_stockout < 7
-                                                            ? 'text-red-600'
-                                                            : order.predicted_days_until_stockout < 14
-                                                                ? 'text-yellow-600'
-                                                                : 'text-green-700'
+                                                        order.predicted_days_until_stockout == null
+                                                            ? 'text-gray-500'
+                                                            : order.predicted_days_until_stockout < 7
+                                                                ? 'text-red-600'
+                                                                : order.predicted_days_until_stockout < 14
+                                                                    ? 'text-yellow-600'
+                                                                    : 'text-green-700'
                                                     }`}
                                                 >
                                                     {order.predicted_days_until_stockout ?? '-'} days
@@ -181,7 +179,7 @@ export default function OrderApproval() {
                                             <div className="bg-gray-50 rounded-lg p-2">
                                                 <p className="text-xs text-gray-400">Unit Price</p>
                                                 <p className="font-bold text-gray-800">
-                                                    ${parseFloat(order.products?.unit_price || 0).toFixed(2)}
+                                                    Rs {parseFloat(order.products?.unit_price || 0).toFixed(2)}
                                                 </p>
                                             </div>
                                         </div>

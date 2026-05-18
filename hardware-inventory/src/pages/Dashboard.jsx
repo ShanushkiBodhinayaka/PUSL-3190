@@ -34,22 +34,13 @@ export default function Dashboard() {
     const [stats, setStats] = useState({});
     const [movements, setMovements] = useState([]);
     const [lowStock, setLowStock] = useState([]);
-    const [lowByCategory, setLowByCategory] = useState([]);
     const [pendingOrders, setPendingOrders] = useState([]);
     const [loading, setLoading] = useState(true);
 
     useEffect(() => {
         async function load() {
             setLoading(true);
-            const [
-                { data: products },
-                { data: recentMovements },
-                { data: orders },
-                { count: receivableOrders },
-                { count: salesToday },
-                { count: importsToday },
-                { data: forecastRows },
-            ] = await Promise.all([
+            const results = await Promise.allSettled([
                 supabase.from('products').select('*').eq('active', true),
                 supabase
                     .from('stock_movements')
@@ -63,7 +54,7 @@ export default function Dashboard() {
                 supabase
                     .from('purchase_orders')
                     .select('id', { count: 'exact', head: true })
-                    .in('status', ['approved', 'ordered']),
+                    .eq('status', 'approved'),
                 supabase
                     .from('sales')
                     .select('id', { count: 'exact', head: true })
@@ -80,6 +71,15 @@ export default function Dashboard() {
                     .limit(200),
             ]);
 
+            const val = (i, key) => results[i].status === 'fulfilled' ? results[i].value[key] : null;
+            const products = val(0, 'data');
+            const recentMovements = val(1, 'data');
+            const orders = val(2, 'data');
+            const receivableOrders = val(3, 'count');
+            const salesToday = val(4, 'count');
+            const importsToday = val(5, 'count');
+            const forecastRows = val(6, 'data');
+
             const low = (products || []).filter(
                 (product) => getStockStatus(product) === 'low' || getStockStatus(product) === 'critical'
             );
@@ -94,15 +94,6 @@ export default function Dashboard() {
                 forecastCriticalCount: new Set((forecastRows || []).map((row) => row.product_id)).size,
             });
             setLowStock(low.slice(0, 5));
-            const categoryCounts = new Map();
-            for (const product of low) {
-                const key = product.category || 'Uncategorized';
-                categoryCounts.set(key, (categoryCounts.get(key) || 0) + 1);
-            }
-            setLowByCategory(Array.from(categoryCounts.entries())
-                .map(([name, count]) => ({ name, count }))
-                .sort((a, b) => b.count - a.count)
-                .slice(0, 6));
             setMovements(recentMovements || []);
             setPendingOrders(orders || []);
             setLoading(false);
@@ -315,39 +306,8 @@ export default function Dashboard() {
                     </div>
                 )}
 
-                {role !== 'sales_operator' && (
-                    <div className="card lg:col-span-2">
-                        <div className="flex items-center gap-2 mb-4">
-                            <CubeIcon className="w-5 h-5 text-blue-500" />
-                            <h3 className="font-semibold text-gray-800">Low Stock by Category</h3>
-                        </div>
-                        {lowByCategory.length === 0 ? (
-                            <p className="text-sm text-gray-400 py-4">No low stock categories.</p>
-                        ) : (
-                            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-                                {lowByCategory.map((row) => (
-                                    <div key={row.name} className="bg-gray-50 rounded-lg p-3 flex items-center justify-between">
-                                        <span className="text-sm font-medium text-gray-700">{row.name}</span>
-                                        <span className="badge-low">{row.count}</span>
-                                    </div>
-                                ))}
-                            </div>
-                        )}
-                    </div>
-                )}
 
-                {role === 'sales_operator' && (
-                    <div className="card">
-                        <h3 className="font-semibold text-gray-800 mb-2">Quick Tips</h3>
-                        <ul className="text-sm text-gray-600 space-y-2 list-disc pl-4">
-                            <li>Use <strong>Sales Import</strong> to upload cashier exports.</li>
-                            <li>Review validation results before updating stock.</li>
-                            <li>Check <strong>Purchase Orders</strong> to see restock status.</li>
-                        </ul>
-                    </div>
-                )}
-
-                {role === 'staff' && (
+{role === 'staff' && (
                     <div className="card">
                         <h3 className="font-semibold text-gray-800 mb-3">Items to Restock</h3>
                         {lowStock.length === 0 ? (

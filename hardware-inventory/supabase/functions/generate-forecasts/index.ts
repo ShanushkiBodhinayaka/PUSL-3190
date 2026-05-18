@@ -198,26 +198,13 @@ function buildForecastRow(product: Record<string, unknown>, movements: Record<st
     return {
         product_id: product.id,
         model_name: modelName,
-        training_data_source: 'stock_movements',
-        history_start: historyStart,
-        history_end: historyEnd,
         forecast_date: runDate,
-        horizon_days: HORIZON_DAYS,
         predicted_demand: round(predictedDemand, 2),
         predicted_daily_demand: round(predictedDailyDemand, 4),
         safety_stock: safetyStock,
         recommended_reorder_quantity: recommendedQuantity,
         reorder_signal: projectedStock <= safetyStock || currentStock <= reorderPoint,
-        validation_mae: validation.mae,
-        validation_rmse: validation.rmse,
-        validation_mape: validation.mape,
         generated_at: new Date().toISOString(),
-        metadata: {
-            source: 'edge_live',
-            projected_stock: round(projectedStock, 2),
-            history_days: series.length,
-            model_parameters: parameters,
-        },
     };
 }
 

@@ -14,6 +14,9 @@ const SKU_HEADERS = ['sku', 'product_sku', 'item_sku', 'item_code', 'code'];
 const QUANTITY_HEADERS = ['quantity', 'qty', 'units', 'units_sold', 'sold_quantity', 'sold_qty'];
 const PRICE_HEADERS = ['unit_price', 'price', 'sale_price', 'selling_price'];
 
+const MAX_FILE_SIZE_BYTES = 5 * 1024 * 1024; // 5 MB
+const MAX_CSV_ROWS = 10_000;
+
 async function hashText(text) {
     const buffer = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(text));
     return Array.from(new Uint8Array(buffer))
@@ -25,6 +28,9 @@ function buildImportPreview(text, products) {
     const csvRows = parseCsv(text);
     if (csvRows.length < 2) {
         throw new Error('The file must include a header row and at least one sale row.');
+    }
+    if (csvRows.length - 1 > MAX_CSV_ROWS) {
+        throw new Error(`File has too many rows. Maximum is ${MAX_CSV_ROWS.toLocaleString()} data rows.`);
     }
 
     const headers = csvRows[0].map(normalizeHeader);
@@ -100,7 +106,7 @@ function buildImportPreview(text, products) {
 }
 
 function money(value) {
-    return `$${Number(value || 0).toFixed(2)}`;
+    return `Rs ${Number(value || 0).toFixed(2)}`;
 }
 
 export default function SalesImport() {
@@ -152,6 +158,12 @@ export default function SalesImport() {
 
         if (!file.name.toLowerCase().endsWith('.csv')) {
             toast.error('Upload a CSV file');
+            event.target.value = '';
+            return;
+        }
+
+        if (file.size > MAX_FILE_SIZE_BYTES) {
+            toast.error('File is too large. Maximum size is 5 MB.');
             event.target.value = '';
             return;
         }

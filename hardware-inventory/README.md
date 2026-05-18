@@ -1,171 +1,177 @@
-# HardwareHub
+# Supabase CLI
 
-HardwareHub is a role-based hardware inventory management app built with React and Supabase. It supports stock tracking, cashier sales imports, purchase order workflows, reporting, and user administration.
+[![Coverage Status](https://coveralls.io/repos/github/supabase/cli/badge.svg?branch=develop)](https://coveralls.io/github/supabase/cli?branch=develop) [![Bitbucket Pipelines](https://img.shields.io/bitbucket/pipelines/supabase-cli/setup-cli/master?style=flat-square&label=Bitbucket%20Canary)](https://bitbucket.org/supabase-cli/setup-cli/pipelines) [![Gitlab Pipeline Status](https://img.shields.io/gitlab/pipeline-status/sweatybridge%2Fsetup-cli?label=Gitlab%20Canary)
+](https://gitlab.com/sweatybridge/setup-cli/-/pipelines)
 
-## Features
+[Supabase](https://supabase.io) is an open source Firebase alternative. We're building the features of Firebase using enterprise-grade open source tools.
 
-- Authentication with role-aware routing
-- Inventory catalog with low-stock indicators
-- Admin category management for product setup
-- Admin product master CSV import for initial setup and SKU updates
-- Import history for sales and product setup batches
-- Cashier CSV sales imports with transactional stock updates
-- Manual stock movement recording
-- Forecast-based reorder suggestions powered by trained time-series models when available
-- Purchase order creation, approval, and receiving workflow
-- Reporting for sales trends and purchase order history
-- Notification badges for low stock, approvals, and receivable orders
-- Admin user management with invite support through a Supabase Edge Function
+This repository contains all the functionality for Supabase CLI.
 
-## Tech Stack
+- [x] Running Supabase locally
+- [x] Managing database migrations
+- [x] Creating and deploying Supabase Functions
+- [x] Generating types directly from your database schema
+- [x] Making authenticated HTTP requests to [Management API](https://supabase.com/docs/reference/api/introduction)
 
-- React 19
-- React Router
-- Tailwind CSS
-- Supabase Auth, Database, Realtime, and Edge Functions
-- Recharts
+## Getting started
 
-## Project Structure
+### Install the CLI
 
-```text
-src/
-  components/        Shared layout and route guards
-  contexts/          Auth context
-  lib/               Supabase client and domain helpers
-  pages/             Route screens
-supabase/
-  functions/
-    invite-user/     Edge Function for admin-only invitations
-forecasting/         Synthetic history generation and model training pipeline
-supabase-schema.sql  Database schema, RLS policies, and RPC functions
-seed-data.sql        Sample products and movements
-demo-large-data.sql  Large generated demo dataset
-```
-
-## Setup
-
-1. Install dependencies:
+Available via [NPM](https://www.npmjs.com) as dev dependency. To install:
 
 ```bash
-npm install
+npm i supabase --save-dev
 ```
 
-2. Create a `.env` file from `.env.example`.
+When installing with yarn 4, you need to disable experimental fetch with the following nodejs config.
 
-3. In Supabase SQL Editor, run:
+```
+NODE_OPTIONS=--no-experimental-fetch yarn add supabase
+```
 
-- `supabase-schema.sql`
-- `seed-data.sql` (optional sample data)
-- `demo-large-data.sql` (optional large demo dataset)
+> **Note**
+For Bun versions below v1.0.17, you must add `supabase` as a [trusted dependency](https://bun.sh/guides/install/trusted) before running `bun add -D supabase`.
 
-4. Deploy the invite function:
+<details>
+  <summary><b>macOS</b></summary>
+
+  Available via [Homebrew](https://brew.sh). To install:
+
+  ```sh
+  brew install supabase/tap/supabase
+  ```
+
+  To install the beta release channel:
+  
+  ```sh
+  brew install supabase/tap/supabase-beta
+  brew link --overwrite supabase-beta
+  ```
+  
+  To upgrade:
+
+  ```sh
+  brew upgrade supabase
+  ```
+</details>
+
+<details>
+  <summary><b>Windows</b></summary>
+
+  Available via [Scoop](https://scoop.sh). To install:
+
+  ```powershell
+  scoop bucket add supabase https://github.com/supabase/scoop-bucket.git
+  scoop install supabase
+  ```
+
+  To upgrade:
+
+  ```powershell
+  scoop update supabase
+  ```
+</details>
+
+<details>
+  <summary><b>Linux</b></summary>
+
+  Available via [Homebrew](https://brew.sh) and Linux packages.
+
+  #### via Homebrew
+
+  To install:
+
+  ```sh
+  brew install supabase/tap/supabase
+  ```
+
+  To upgrade:
+
+  ```sh
+  brew upgrade supabase
+  ```
+
+  #### via Linux packages
+
+  Linux packages are provided in [Releases](https://github.com/supabase/cli/releases). To install, download the `.apk`/`.deb`/`.rpm`/`.pkg.tar.zst` file depending on your package manager and run the respective commands.
+
+  ```sh
+  sudo apk add --allow-untrusted <...>.apk
+  ```
+
+  ```sh
+  sudo dpkg -i <...>.deb
+  ```
+
+  ```sh
+  sudo rpm -i <...>.rpm
+  ```
+
+  ```sh
+  sudo pacman -U <...>.pkg.tar.zst
+  ```
+</details>
+
+<details>
+  <summary><b>Other Platforms</b></summary>
+
+  You can also install the CLI via [go modules](https://go.dev/ref/mod#go-install) without the help of package managers.
+
+  ```sh
+  go install github.com/supabase/cli@latest
+  ```
+
+  Add a symlink to the binary in `$PATH` for easier access:
+
+  ```sh
+  ln -s "$(go env GOPATH)/bin/cli" /usr/bin/supabase
+  ```
+
+  This works on other non-standard Linux distros.
+</details>
+
+<details>
+  <summary><b>Community Maintained Packages</b></summary>
+
+  Available via [pkgx](https://pkgx.sh/). Package script [here](https://github.com/pkgxdev/pantry/blob/main/projects/supabase.com/cli/package.yml).
+  To install in your working directory:
+
+  ```bash
+  pkgx install supabase
+  ```
+
+  Available via [Nixpkgs](https://nixos.org/). Package script [here](https://github.com/NixOS/nixpkgs/blob/master/pkgs/development/tools/supabase-cli/default.nix).
+</details>
+
+### Run the CLI
 
 ```bash
-supabase functions deploy invite-user
+supabase bootstrap
 ```
 
-5. Configure Supabase function secrets:
+Or using npx:
 
 ```bash
-supabase secrets set SUPABASE_URL=...
-supabase secrets set SUPABASE_ANON_KEY=...
-supabase secrets set SUPABASE_SERVICE_ROLE_KEY=...
+npx supabase bootstrap
 ```
 
-6. Start the app:
+The bootstrap command will guide you through the process of setting up a Supabase project using one of the [starter](https://github.com/supabase-community/supabase-samples/blob/main/samples.json) templates.
 
-```bash
-npm start
+## Docs
+
+Command & config reference can be found [here](https://supabase.com/docs/reference/cli/about).
+
+## Breaking changes
+
+We follow semantic versioning for changes that directly impact CLI commands, flags, and configurations.
+
+However, due to dependencies on other service images, we cannot guarantee that schema migrations, seed.sql, and generated types will always work for the same CLI major version. If you need such guarantees, we encourage you to pin a specific version of CLI in package.json.
+
+## Developing
+
+To run from source:
+
+```sh
+# Go >= 1.22
+go run . help
 ```
-
-## Forecasting Workflow
-
-If you want the app to use trained forecasts instead of fallback heuristics:
-
-1. Generate retail-style history for the current catalog:
-
-```bash
-python forecasting/generate_synthetic_history.py
-```
-
-2. Train forecasts and export SQL:
-
-```bash
-python forecasting/train_forecasts.py
-```
-
-3. Run `forecasting/generated/demand_forecasts.sql` in Supabase.
-
-The app will then use rows from `demand_forecasts` when generating forecast-based purchase orders.
-
-## Large Demo Dataset
-
-For a fuller demo with thousands of rows, run `demo-large-data.sql` in the Supabase SQL Editor after `supabase-schema.sql`.
-
-It creates:
-
-- 1,200 demo products
-- 8,630 demo sales receipts, including a recent window from four days ago through the day after tomorrow
-- 8,630 sale items
-- 10,230 stock movements
-- 1,200 demand forecasts
-- 220 purchase orders
-
-The script only resets rows tagged with `DEMO-LARGE` or SKU prefix `DEMO-`, so it can be rerun without clearing your normal seed data.
-
-## Environment Variables
-
-Frontend:
-
-- `REACT_APP_SUPABASE_URL`
-- `REACT_APP_SUPABASE_KEY`
-
-Edge Function:
-
-- `SUPABASE_URL`
-- `SUPABASE_ANON_KEY`
-- `SUPABASE_SERVICE_ROLE_KEY`
-
-## Roles
-
-- `admin`: full access, user management, approvals
-- `inventory_manager`: inventory maintenance and stock control
-- `sales_operator`: cashier sales imports and sales-driven stock movement
-- `approval_manager`: approve or reject purchase orders
-- `staff`: view inventory and record basic stock movements
-
-## Database Notes
-
-The schema includes important RPC functions used by the frontend:
-
-- `import_sales_batch(...)`: imports cashier CSV sales, creates sale rows, records stock movements, and deducts stock in one transaction
-- `record_stock_movement(...)`: records a movement and updates stock in one transaction
-- `update_product_master(...)`: updates product master fields without changing stock history
-- `archive_product(...)`: hides/restores products while preserving reporting history
-- `delete_product(...)`: deletes products only when they do not have sales history
-- `receive_purchase_order(...)`: marks approved/ordered purchase orders as received, increases stock, and records a restock movement
-- `demand_forecasts`: stores trained model outputs that the frontend prefers over heuristic predictions
-
-This prevents partial writes from leaving the inventory in an inconsistent state.
-
-## Scripts
-
-- `npm start`: run the development server
-- `npm run build`: build the production bundle
-- `npm test -- --watchAll=false`: run the test suite once
-
-## Testing
-
-The current automated tests cover:
-
-- stock prediction logic
-- role helper logic
-- post-login navigation logic
-- protected route behavior
-
-## Remaining Operational Work
-
-- deploy the Supabase Edge Function in your actual Supabase project
-- apply the latest SQL schema to the target database
-- create real auth users or send invitations from the admin panel
-- verify each role end-to-end in the deployed environment

@@ -5,7 +5,8 @@ import { useAuth } from '../contexts/AuthContext';
 export default function ProtectedRoute({ children, allowedRoles }) {
     const { user, role, loading } = useAuth();
 
-    const demoBypassEnabled = process.env.REACT_APP_DEMO_BYPASS === 'true';
+    const demoBypassEnabled =
+        process.env.NODE_ENV === 'development' && process.env.REACT_APP_DEMO_BYPASS === 'true';
 
     if (demoBypassEnabled) {
         return children;

@@ -3,7 +3,7 @@ import { supabase } from '../lib/supabase';
 
 const AuthContext = createContext({});
 const AUTH_REQUEST_TIMEOUT_MS = 2500;
-const AUTH_CACHE_KEY = 'hardwarehub.auth-cache';
+const AUTH_CACHE_KEY = 'smart-ims.auth-cache';
 
 function withTimeout(promise, message) {
     return Promise.race([
@@ -36,7 +36,7 @@ function writeCachedAuth(nextState) {
 
         window.localStorage.setItem(AUTH_CACHE_KEY, JSON.stringify(nextState));
     } catch (_error) {
-        // Ignore cache write failures so auth still works without local persistence.
+        // localStorage might be blocked (private browsing etc.) — safe to skip
     }
 }
 
@@ -49,7 +49,7 @@ export function AuthProvider({ children }) {
     const [role, setRole] = useState(initialAuth?.role ?? null);
     const [loading, setLoading] = useState(!initialAuth?.user);
 
-    // Fetch the user's profile (role) from the profiles table
+    // role lives in profiles, not in the auth user object
     async function fetchProfile(userId) {
         const { data, error } = await withTimeout(
             supabase
@@ -126,7 +126,7 @@ export function AuthProvider({ children }) {
 
         bootstrapAuth();
 
-        // Subscribe to auth changes
+        // keep state in sync when the user signs in/out in another tab
         const { data: { subscription } } = supabase.auth.onAuthStateChange(
             async (_event, session) => {
                 if (!isMounted) return;

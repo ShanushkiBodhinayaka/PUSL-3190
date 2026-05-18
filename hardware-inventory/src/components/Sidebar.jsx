@@ -50,7 +50,7 @@ export default function Sidebar() {
                 const { count } = await supabase
                     .from('purchase_orders')
                     .select('id', { count: 'exact', head: true })
-                    .in('status', ['approved', 'ordered']);
+                    .eq('status', 'approved');
                 if (count) nextBadges['/purchase-orders'] = count;
             }
 
@@ -84,7 +84,7 @@ export default function Sidebar() {
                     <WrenchScrewdriverIcon className="w-5 h-5 text-white" />
                 </div>
                 <div>
-                    <p className="text-white font-bold text-sm leading-tight">HardwareHub</p>
+                    <p className="text-white font-bold text-sm leading-tight">Smart IMS</p>
                     <p className="text-gray-400 text-xs">Inventory System</p>
                 </div>
             </div>

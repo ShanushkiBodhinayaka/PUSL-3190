@@ -6,7 +6,7 @@ import { useAuth } from '../contexts/AuthContext';
 import { supabase } from '../lib/supabase';
 
 function money(value) {
-    return `$${Number(value || 0).toFixed(2)}`;
+    return `Rs ${Number(value || 0).toFixed(2)}`;
 }
 
 export default function ImportHistory() {

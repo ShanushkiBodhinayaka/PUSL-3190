@@ -8,6 +8,7 @@ import Dashboard from './pages/Dashboard';
 import ImportHistory from './pages/ImportHistory';
 import Inventory from './pages/Inventory';
 import Login from './pages/Login';
+import SetPassword from './pages/SetPassword';
 import OrderApproval from './pages/OrderApproval';
 import PurchaseOrders from './pages/PurchaseOrders';
 import Reports from './pages/Reports';
@@ -47,6 +48,7 @@ export default function App() {
                 />
                 <Routes>
                     <Route path="/login" element={<Login />} />
+                    <Route path="/set-password" element={<SetPassword />} />
                     <Route path="/unauthorized" element={<Unauthorized />} />
 
                     <Route

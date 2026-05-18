@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { format } from 'date-fns';
 import { FunnelIcon, MagnifyingGlassIcon, PlusIcon } from '@heroicons/react/24/outline';
 import toast from 'react-hot-toast';
@@ -24,12 +24,13 @@ const MOVEMENT_COLORS = {
 function allowedMovementTypes(role) {
     if (role === 'sales_operator') return ['sale'];
     if (role === 'staff') return ['damage'];
+    if (role === 'inventory_manager') return ['restock', 'damage'];
     return ['sale', 'restock', 'adjustment', 'damage'];
 }
 
 export default function StockMovements() {
     const { role } = useAuth();
-    const allowedTypes = allowedMovementTypes(role);
+    const allowedTypes = useMemo(() => allowedMovementTypes(role), [role]);
     const [movements, setMovements] = useState([]);
     const [products, setProducts] = useState([]);
     const [loading, setLoading] = useState(true);
@@ -46,6 +47,8 @@ export default function StockMovements() {
 
     const load = useCallback(async () => {
         setLoading(true);
+        const allTypes = ['sale', 'restock', 'adjustment', 'damage'];
+        const typeFilter = allowedTypes.length < allTypes.length ? allowedTypes : allTypes;
         const [{ data: productRows }, { data: movementRows }] = await Promise.all([
             supabase
                 .from('products')
@@ -55,13 +58,14 @@ export default function StockMovements() {
             supabase
                 .from('stock_movements')
                 .select('*, products(name, sku), profiles(full_name, role)')
+                .in('movement_type', typeFilter)
                 .order('created_at', { ascending: false })
                 .limit(movementLimit),
         ]);
         setProducts(productRows || []);
         setMovements(movementRows || []);
         setLoading(false);
-    }, [movementLimit]);
+    }, [movementLimit, allowedTypes]);
 
     useEffect(() => {
         load();
@@ -219,7 +223,7 @@ export default function StockMovements() {
                             />
                         </div>
                         <div className="flex gap-1 flex-wrap">
-                            {['all', 'sale', 'restock', 'adjustment', 'damage'].map((movementType) => (
+                            {['all', ...allowedTypes].map((movementType) => (
                                 <button
                                     key={movementType}
                                     onClick={() => setFilter(movementType)}
